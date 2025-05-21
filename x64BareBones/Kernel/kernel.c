@@ -99,6 +99,8 @@ int main()
 	ncPrint((char*)sampleDataModuleAddress);
 	ncNewline();
 
+	ncPrint("Por favor funciona");
+	ncNewline();
 	ncPrint("[Finished]");
 	return 0;
 }
