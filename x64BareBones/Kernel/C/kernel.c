@@ -83,6 +83,10 @@ void * initializeKernelBinary()
 int main()
 {	
 	ncPrint("[Kernel Main]");
+	ncPrint("Test div0\n"); ncNewline();
+	volatile int x = 1/0;
+	(void)x;
+
 	ncNewline();
 	ncPrint("  Sample code module at 0x");
 	ncPrintHex((uint64_t)sampleCodeModuleAddress);
