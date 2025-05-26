@@ -3,6 +3,7 @@ BITS 64
 
     EXTERN exception_handler_div0
     EXTERN exception_handler_invalid_opcode
+    EXTERN keyboard_irq_handler
 
     GLOBAL picMasterMask
     GLOBAL picSlaveMask
@@ -93,9 +94,9 @@ _irq00Handler:
 
 _irq01Handler:
     pushState
+    call keyboard_irq_handler
     popState
     iretq
-
 
 _syscallHandler:
     pushState

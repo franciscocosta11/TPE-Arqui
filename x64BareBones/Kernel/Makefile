@@ -1,37 +1,41 @@
 include Makefile.inc
 
-KERNEL=kernel.bin
-SOURCES=$(wildcard *.c)
-SOURCES_ASM=$(wildcard asm/*.asm)
-SOURCES_C=$(wildcard C/*.c)
+KERNEL = kernel.bin
 
-OBJECTS=$(SOURCES:.c=.o)
-OBJECTS_ASM=$(SOURCES_ASM:.asm=.o)
-OBJECTS_C=$(SOURCES_C:.c=.o)
-OBJECTS_DRIVERS=$(SOURCES_DRIVERS:.c=.o)
-OBJECTS_INTERRUPTIONS=$(SOURCES_INTERRUPTIONS:.c=.o)
+# Fuentes
+SOURCES         = $(wildcard *.c)
+SOURCES_ASM     = $(wildcard asm/*.asm)
+SOURCES_C       = $(wildcard C/*.c)
+SOURCES_DRIVERS = $(wildcard C/drivers/*.c)
 
-LOADERSRC=loader.asm
+# Objetos
+OBJECTS         = $(SOURCES:.c=.o)
+OBJECTS_ASM     = $(SOURCES_ASM:.asm=.o)
+OBJECTS_C       = $(SOURCES_C:.c=.o)
+OBJECTS_DRIVERS = $(SOURCES_DRIVERS:.c=.o)
 
-LOADEROBJECT=$(LOADERSRC:.asm=.o)
-STATICLIBS=
+# Loader
+LOADERSRC    = loader.asm
+LOADEROBJECT = $(LOADERSRC:.asm=.o)
 
 all: $(KERNEL)
 
-$(KERNEL): $(LOADEROBJECT) $(OBJECTS) $(STATICLIBS) $(OBJECTS_ASM) $(OBJECTS_C) $(OBJECTS_DRIVERS) $(OBJECTS_INTERRUPTIONS)
-	$(LD) $(LDFLAGS) -T kernel.ld -o $(KERNEL) $(LOADEROBJECT) $(OBJECTS) $(OBJECTS_ASM) $(OBJECTS_C) $(OBJECTS_DRIVERS) $(OBJECTS_INTERRUPTIONS) $(STATICLIBS)
-	$(LD) $(LDFLAGS) -T kernel.ld  --oformat=elf64-x86-64 -o kernel.elf $(LOADEROBJECT) $(OBJECTS) $(OBJECTS_ASM) $(OBJECTS_C) $(OBJECTS_DRIVERS) $(OBJECTS_INTERRUPTIONS) $(STATICLIBS)
+$(KERNEL): $(LOADEROBJECT) $(OBJECTS) $(OBJECTS_ASM) $(OBJECTS_C) $(OBJECTS_DRIVERS)
+	$(LD) $(LDFLAGS) -T kernel.ld -o $(KERNEL) \
+	  $(LOADEROBJECT) $(OBJECTS) $(OBJECTS_ASM) $(OBJECTS_C) $(OBJECTS_DRIVERS)
+	$(LD) $(LDFLAGS) -T kernel.ld --oformat=elf64-x86-64 -o kernel.elf \
+	  $(LOADEROBJECT) $(OBJECTS) $(OBJECTS_ASM) $(OBJECTS_C) $(OBJECTS_DRIVERS)
 
 %.o: %.c
 	$(GCC) $(GCCFLAGS) -I./include -c $< -o $@
 
-%.o : %.asm
+%.o: %.asm
 	$(ASM) $(ASMFLAGS) $< -o $@
 
 $(LOADEROBJECT):
 	$(ASM) $(ASMFLAGS) $(LOADERSRC) -o $(LOADEROBJECT)
 
 clean:
-	rm -rf asm/*.o *.o *.bin C/*.o 
+	rm -rf asm/*.o C/*.o C/drivers/*.o *.o *.bin
 
 .PHONY: all clean

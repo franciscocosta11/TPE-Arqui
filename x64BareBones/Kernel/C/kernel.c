@@ -3,6 +3,8 @@
 #include <lib.h>
 #include <moduleLoader.h>
 #include <naiveConsole.h>
+#include <keyboard.h>
+#include <interrupts.h>
 
 extern uint8_t text;
 extern uint8_t rodata;
@@ -81,30 +83,37 @@ void * initializeKernelBinary()
 }
 
 int main()
-{	
-	ncPrint("[Kernel Main]");
-	ncPrint("Test div0\n"); ncNewline();
-	volatile int x = 1/0;
-	(void)x;
+{
+    ncPrint("[Kernel Main]");
+    ncNewline();
 
-	ncNewline();
-	ncPrint("  Sample code module at 0x");
-	ncPrintHex((uint64_t)sampleCodeModuleAddress);
-	ncNewline();
-	ncPrint("  Calling the sample code module returned: ");
-	ncPrintHex(((EntryPoint)sampleCodeModuleAddress)());
-	ncNewline();
-	ncNewline();
 
-	ncPrint("  Sample data module at 0x");
-	ncPrintHex((uint64_t)sampleDataModuleAddress);
-	ncNewline();
-	ncPrint("  Sample data module contents: ");
-	ncPrint((char*)sampleDataModuleAddress);
-	ncNewline();
+    load_idt();           // cargar IDT y habilitar interrupciones
+    keyboard_init();      // habilitar IRQ1 del teclado
 
-	ncPrint("Por favor funciona");
-	ncNewline();
-	ncPrint("[Finished]");
-	return 0;
+    ncPrint("  Sample code module at 0x");
+    ncPrintHex((uint64_t)sampleCodeModuleAddress);
+    ncNewline();
+    ncPrint("  Calling the sample code module returned: ");
+    ncPrintHex(((EntryPoint)sampleCodeModuleAddress)());
+    ncNewline();
+    ncNewline();
+
+    ncPrint("  Sample data module at 0x");
+    ncPrintHex((uint64_t)sampleDataModuleAddress);
+    ncNewline();
+    ncPrint("  Sample data module contents: ");
+    ncPrint((char*)sampleDataModuleAddress);
+    ncNewline();
+
+    ncPrint("Por favor funciona");
+    ncNewline();
+
+    ncPrint("Teclado listo. Escribe algo:\n");
+    while (1) {
+        char c = keyboard_getchar();
+        ncPrintChar(c);
+    }
+
+    return 0;
 }
