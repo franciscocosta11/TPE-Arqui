@@ -88,8 +88,25 @@ int main()
     ncNewline();
 
 
-    load_idt();           // cargar IDT y habilitar interrupciones
-    keyboard_init();      // habilitar IRQ1 del teclado
+   load_idt();
+    
+    // Inicializar video
+    vdClear();
+    
+    // Inicializar teclado
+    keyboard_init();
+    
+    // Deshabilitar echo en el teclado para manejarlo manualmente
+    keyboard_set_echo(0);
+    
+    // Mensaje de bienvenida
+    vdPrintStyled("Sistema inicializado. Puedes comenzar a escribir:\n", 0x00FF00, 0x000000);
+    
+    // Ciclo principal
+    while (1) {
+        char c = keyboard_getchar();
+        vdPrintChar(c);
+    }
 
     ncPrint("  Sample code module at 0x");
     ncPrintHex((uint64_t)sampleCodeModuleAddress);
@@ -108,12 +125,6 @@ int main()
 
     ncPrint("Por favor funciona");
     ncNewline();
-
-    ncPrint("Teclado listo. Escribe algo:\n");
-    while (1) {
-        char c = keyboard_getchar();
-        ncPrintChar(c);
-    }
 
     return 0;
 }

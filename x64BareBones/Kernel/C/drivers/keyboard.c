@@ -1,17 +1,8 @@
 #include <keyboard.h>
-#include <interrupts.h>   // picMasterMask
+#include <interrupts.h>   
 #include <stdint.h>
+#include <videoDriver.h>  // Incluir el controlador de video
 
-static inline uint8_t inb(uint16_t port) {
-    uint8_t b;
-    __asm__ volatile ("inb %1, %0" : "=a"(b) : "Nd"(port));
-    return b;
-}
-static inline void outb(uint16_t port, uint8_t v) {
-    __asm__ volatile ("outb %0, %1" : : "a"(v), "Nd"(port));
-}
-
-/* Mapa de scancodes (set1), sin Shift ni Control */
 static const char keymap[128] = {
     [0x02] = '1', [0x03] = '2', [0x04] = '3', [0x05] = '4',
     [0x06] = '5', [0x07] = '6', [0x08] = '7', [0x09] = '8',
@@ -32,6 +23,7 @@ static const char keymap[128] = {
 
 static volatile char buffer = 0;
 static volatile int  ready  = 0;
+static int echoEnabled = 1;  // Flag para habilitar/deshabilitar eco
 
 void keyboard_irq_handler(void) {
     uint8_t sc = inb(0x60);
@@ -40,6 +32,11 @@ void keyboard_irq_handler(void) {
         if (c) {
             buffer = c;
             ready  = 1;
+            
+            // Si el eco está habilitado, mostrar inmediatamente el carácter en pantalla
+            if (echoEnabled) {
+                vdPrintChar(c);
+            }
         }
     }
     outb(0x20, 0x20);  // EOI al PIC maestro
@@ -55,3 +52,7 @@ char keyboard_getchar(void) {
     return buffer;
 }
 
+// Nueva función: Habilita o deshabilita el eco automático de teclas
+void keyboard_set_echo(int enabled) {
+    echoEnabled = enabled;
+}

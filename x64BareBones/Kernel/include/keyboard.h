@@ -1,13 +1,16 @@
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
 
-#include <stdint.h>
-
-/* Debe ser invocado desde tu stub de IRQ1 */
-void keyboard_irq_handler(void);
-/* Habilita la IRQ1 en el PIC maestro */
+// Inicializa el controlador de teclado
 void keyboard_init(void);
-/* Bloqueante: devuelve el próximo carácter tecleado */
+
+// Maneja la interrupción de teclado
+void keyboard_irq_handler(void);
+
+// Obtiene un carácter del teclado (espera hasta que haya uno disponible)
 char keyboard_getchar(void);
 
-#endif // KEYBOARD_H
+// Habilita o deshabilita el eco automático de teclas
+void keyboard_set_echo(int enabled);
+
+#endif

@@ -1,5 +1,3 @@
-; Kernel/asm/interrupts.asm
-BITS 64
 
     EXTERN exception_handler_div0
     EXTERN exception_handler_invalid_opcode
