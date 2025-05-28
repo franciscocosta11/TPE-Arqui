@@ -54,3 +54,4 @@ char keyboard_getchar(void) {
     ready = 0;
     return buffer;
 }
+
