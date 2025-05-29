@@ -2,6 +2,7 @@
     EXTERN exception_handler_div0
     EXTERN exception_handler_invalid_opcode
     EXTERN keyboard_irq_handler
+    EXTERN irqDispatcher
 
     GLOBAL picMasterMask
     GLOBAL picSlaveMask
@@ -11,6 +12,8 @@
     GLOBAL _irq00Handler
     GLOBAL _irq01Handler
     GLOBAL _syscallHandler
+    GLOBAL _hlt
+    GLOBAL _cli
 
 section .text
 
@@ -65,6 +68,15 @@ _sti:
     sti
     ret
 
+_hlt:
+	sti
+	hlt
+	ret
+
+_cli:
+	cli
+	ret
+
 
 _exception0Handler:
     cli
@@ -87,12 +99,27 @@ _exception06Handler:
 
 _irq00Handler:
     pushState
+    
+    mov rdi, 0  ; IRQ 0 para timer
+    call irqDispatcher
+    
+    ; Send EOI to the PIC
+    mov al, 20h
+    out 20h, al
+    
     popState
     iretq
 
 _irq01Handler:
     pushState
-    call keyboard_irq_handler
+    
+    mov rdi, 1  ; IRQ 1 para teclado
+    call irqDispatcher
+    
+    ; Send EOI to the PIC
+    mov al, 20h
+    out 20h, al
+    
     popState
     iretq
 

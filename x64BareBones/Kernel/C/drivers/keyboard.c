@@ -23,36 +23,24 @@ static const char keymap[128] = {
 
 static volatile char buffer = 0;
 static volatile int  ready  = 0;
-static int echoEnabled = 1;  // Flag para habilitar/deshabilitar eco
 
 void keyboard_irq_handler(void) {
     uint8_t sc = inb(0x60);
-    if (sc < 128) {
-        char c = keymap[sc];
-        if (c) {
-            buffer = c;
-            ready  = 1;
-            
-            // Si el eco está habilitado, mostrar inmediatamente el carácter en pantalla
-            if (echoEnabled) {
-                vdPrintChar(c);
-            }
-        }
+    
+    if (sc & 0x80) {
+        return;
     }
-    outb(0x20, 0x20);  // EOI al PIC maestro
+    
+    char c = keymap[sc];
+    vdPrintChar(c);  
 }
 
 void keyboard_init(void) {
-    picMasterMask(0xFC);  // 11111100: habilita IRQ0 (timer) e IRQ1 (teclado)
+    picMasterMask(0xFC); 
 }
 
 char keyboard_getchar(void) {
     while (!ready) { __asm__ volatile ("hlt"); }
     ready = 0;
     return buffer;
-}
-
-// Nueva función: Habilita o deshabilita el eco automático de teclas
-void keyboard_set_echo(int enabled) {
-    echoEnabled = enabled;
 }

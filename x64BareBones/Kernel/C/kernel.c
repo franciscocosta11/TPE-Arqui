@@ -4,6 +4,7 @@
 #include <moduleLoader.h>
 #include <naiveConsole.h>
 #include <keyboard.h>
+#include <videoDriver.h>
 #include <interrupts.h>
 
 extern uint8_t text;
@@ -87,44 +88,23 @@ int main()
     ncPrint("[Kernel Main]");
     ncNewline();
 
-
-   load_idt();
-    
-    // Inicializar video
-    vdClear();
+    // Inicializar IDT
+    load_idt();
     
     // Inicializar teclado
     keyboard_init();
     
-    // Deshabilitar echo en el teclado para manejarlo manualmente
-    keyboard_set_echo(0);
+    // Inicializar video
+    vdClear();
     
-    // Mensaje de bienvenida
-    vdPrintStyled("Sistema inicializado. Puedes comenzar a escribir:\n", 0x00FF00, 0x000000);
+    // Mensaje de bienvenida con información de diagnóstico
+    vdPrint("Sistema inicializado. Depuracion activada.\n");
+    vdPrint("Presiona teclas para ver los scancodes y caracteres...\n");
     
-    // Ciclo principal
+    // Esperar interrupciones de teclado sin entrar en bucle de lectura
     while (1) {
-        char c = keyboard_getchar();
-        vdPrintChar(c);
+       _hlt();  // Espera a que ocurra una interrupción
     }
-
-    ncPrint("  Sample code module at 0x");
-    ncPrintHex((uint64_t)sampleCodeModuleAddress);
-    ncNewline();
-    ncPrint("  Calling the sample code module returned: ");
-    ncPrintHex(((EntryPoint)sampleCodeModuleAddress)());
-    ncNewline();
-    ncNewline();
-
-    ncPrint("  Sample data module at 0x");
-    ncPrintHex((uint64_t)sampleDataModuleAddress);
-    ncNewline();
-    ncPrint("  Sample data module contents: ");
-    ncPrint((char*)sampleDataModuleAddress);
-    ncNewline();
-
-    ncPrint("Por favor funciona");
-    ncNewline();
 
     return 0;
 }
