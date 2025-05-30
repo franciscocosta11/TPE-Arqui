@@ -1,4 +1,5 @@
 /* sampleCodeModule.c */
+#include "./include/shell.h"
 
 char * v = (char*)0xB8000 + 79 * 2;
 
@@ -11,9 +12,11 @@ int main() {
 	*v = 'X';
 	*(v+1) = 0x74;
 
+	shell();
 	//Test if BSS is properly set up
 	if (var1 == 0 && var2 == 0)
 		return 0xDEADC0DE;
 
+	
 	return 0xDEADBEEF;
 }

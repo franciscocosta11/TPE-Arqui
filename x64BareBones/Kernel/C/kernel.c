@@ -5,6 +5,7 @@
 #include <naiveConsole.h>
 #include <keyboard.h>
 #include <videoDriver.h>
+#include <idtLoader.h>
 #include <interrupts.h>
 
 extern uint8_t text;
@@ -94,16 +95,20 @@ int main()
     // Inicializar teclado
     keyboard_init();
     
-    // Inicializar video
+    
     vdClear();
+    vdPrint("Sistema inicializado.\n");
     
-    // Mensaje de bienvenida con información de diagnóstico
-    vdPrint("Sistema inicializado. Depuracion activada.\n");
-    vdPrint("Presiona teclas para ver los scancodes y caracteres...\n");
     
-    // Esperar interrupciones de teclado sin entrar en bucle de lectura
+    ncNewline();
+    
+    
+    EntryPoint entryPoint = (EntryPoint)sampleCodeModuleAddress;
+	entryPoint();
+	
+    // Esperar interrupciones
     while (1) {
-       _hlt();  // Espera a que ocurra una interrupción
+       _hlt();
     }
 
     return 0;

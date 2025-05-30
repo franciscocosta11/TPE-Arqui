@@ -1,7 +1,7 @@
 #include <keyboard.h>
 #include <interrupts.h>   
 #include <stdint.h>
-#include <videoDriver.h>  // Incluir el controlador de video
+#include <videoDriver.h>
 
 #define CAPS_LOCK 0x3A
 #define CAPS_LOCK_REL 0xBA
@@ -13,6 +13,7 @@
 // Flags para el estado del teclado
 static int shift_pressed = 0;
 static int caps_lock_on = 0; 
+
 
 static const char keymap[128] = {
     [0x02] = '1', [0x03] = '2', [0x04] = '3', [0x05] = '4',
@@ -68,7 +69,7 @@ void keyboard_irq_handler(void) {
         return;
     }
     
-    // Manejar Caps Lock (solo cuando se presiona, no cuando se suelta)
+    // Manejar Caps Lock (solo cuando se toca, no cuando se suelta)
     if (sc == CAPS_LOCK) {
         caps_lock_on = !caps_lock_on;  // Toggle Caps Lock
         return;
@@ -84,7 +85,7 @@ void keyboard_irq_handler(void) {
     // Elegir el mapa correcto según shift y caps lock
     char c;
     
-    // Es una letra? (a-z o A-Z)
+    // Es una letra?
     if ((sc >= 0x10 && sc <= 0x19) || (sc >= 0x1E && sc <= 0x26) || (sc >= 0x2C && sc <= 0x32)) {
         // Para letras: si shift y caps lock están activos juntos, se cancelan mutuamente
         if ((shift_pressed && !caps_lock_on) || (!shift_pressed && caps_lock_on)) {
@@ -93,14 +94,14 @@ void keyboard_irq_handler(void) {
             c = keymap[sc];
         }
     } else {
-        // Para no letras: solo shift importa, caps lock no tiene efecto
+        // Para no letras: solo shift importa, caps lock no 
         c = shift_pressed ? keymap_shift[sc] : keymap[sc];
     }
     
     if (c) {
         buffer = c;
         ready = 1;
-        vdPrintChar(c);
+        //vdPrintChar(c);
     }
 }
 

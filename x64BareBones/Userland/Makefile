@@ -1,8 +1,15 @@
 include Makefile.inc
 
+USERLAND=userland.bin
 SAMPLE_DATA=0001-sampleDataModule.bin
+SOURCES_ASM=$(wildcard asm/*.asm)
+SOURCES_C=$(wildcard c/*.c)
 
-all: sampleCodeModule sampleDataModule
+OBJECTS=$(SOURCES:.c=.o)
+OBJECTS_ASM=$(SOURCES_ASM:.asm=.o)
+OBJECTS_C=$(SOURCES_C:.c=.o)
+
+all: sampleCodeModule sampleDataModule #$(USERLAND)
 
 sampleCodeModule:
 	cd SampleCodeModule; make

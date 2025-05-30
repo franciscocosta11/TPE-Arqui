@@ -1,14 +1,12 @@
 
-    EXTERN exception_handler_div0
-    EXTERN exception_handler_invalid_opcode
+
     EXTERN keyboard_irq_handler
     EXTERN irqDispatcher
+    EXTERN syscallDispatcher
 
     GLOBAL picMasterMask
     GLOBAL picSlaveMask
     GLOBAL _sti
-    GLOBAL _exception0Handler
-    GLOBAL _exception06Handler
     GLOBAL _irq00Handler
     GLOBAL _irq01Handler
     GLOBAL _syscallHandler
@@ -55,13 +53,19 @@ section .text
 
 
 picMasterMask:
+    push rbp
+    mov rbp, rsp
     mov al, dil
     out 0x21, al
+    pop rbp
     ret
 
 picSlaveMask:
+    push rbp
+    mov rbp, rsp
     mov al, dil
     out 0xA1, al
+    pop rbp
     ret
 
 _sti:
@@ -76,25 +80,6 @@ _hlt:
 _cli:
 	cli
 	ret
-
-
-_exception0Handler:
-    cli
-    pushState
-    mov rdi, rsp
-    call exception_handler_div0
-    popState
-    sti
-    iretq
-
-_exception06Handler:
-    cli
-    pushState
-    mov rdi, rsp
-    call exception_handler_invalid_opcode
-    popState
-    sti
-    iretq
 
 
 _irq00Handler:
@@ -125,5 +110,6 @@ _irq01Handler:
 
 _syscallHandler:
     pushState
+    call syscallDispatcher
     popState
     iretq

@@ -11,6 +11,8 @@
 
 #define BITS_PER_PIXEL 3
 
+extern uint8_t currentFontSize;  
+#define MAX_FONT_SIZE 3
 
 unsigned char *getCharHexData(uint8_t c);
 void vdPrint(const char *string);
@@ -21,6 +23,7 @@ uint64_t vdNPrintStyled(const char *string, uint32_t color, uint32_t bgColor, ui
 void vdNewline();
 void vdClear();
 void vdDelete();
+void vdSetFontSize(uint8_t size);
 
 void drawRectangle(uint32_t color, uint16_t up_l_x, uint16_t up_l_y, uint16_t lo_r_x, uint16_t lo_r_y);
 

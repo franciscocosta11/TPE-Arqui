@@ -3,16 +3,19 @@
 
 #include <stdint.h>
 
-/* --- Stubs de excepción e IRQ definidos en interrupts.asm --- */
-extern void _exception0Handler(void);
-extern void _exception06Handler(void);
 extern void _irq00Handler(void);
 extern void _irq01Handler(void);
 extern void _syscallHandler(void);
 
-/* --- Funciones para PIC y control de interrupciones --- */
+
+void _cli(void);
+void _sti(void);
+void _hlt(void);
 void picMasterMask(uint8_t mask);
 void picSlaveMask(uint8_t mask);
-void sti(void);
+
+
+uint8_t inb(uint16_t port);
+void outb(uint16_t port, uint8_t value);
 
 #endif  // INTERRUPTS_H
