@@ -44,23 +44,31 @@ void displayRegisters() {
 
 void shell() {
     char cmd[CMD_MAX];
-    int  cmdLen = 0;
+    int cmdLen = 0;
+    int promptLength = 19; // Longitud de "@mark_zuckerberg$> " asi no me lo borran...
 
     print("@mark_zuckerberg$> ");
 
     while (1) {
         char c = getchar();
 
-        // Acumula caracteres hasta '\n'
-        if (c != '\n' && cmdLen < CMD_MAX-1) {
+        // Manejar el backspace
+        if (c == '\b') {
+            if (cmdLen > 0) {  // Solo borrar si hay caracteres en el buffer
+                cmdLen--;      // Decrementar el contador de caracteres
+                putchar(c);    // Imprimir el backspace (eco)
+            }
+        }
+        // Acumular caracteres hasta '\n' (no incluye backspace)
+        else if (c != '\n' && cmdLen < CMD_MAX-1) {
             putchar(c);
             cmd[cmdLen++] = c;
         }
-        else {
+        else if (c == '\n') {
             putchar(c);             // eco del '\n'
             cmd[cmdLen] = '\0';     // cierre de cadena
 
-            
+            // Procesar comando
             if (strcmp(cmd, "ls") == 0) {
                 print("Comandos disponibles: ls, help, ex1, ex2, time, regs, clear, font\n");
             }
