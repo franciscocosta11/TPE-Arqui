@@ -1,6 +1,8 @@
 #include "./../include/libc.h"
+#define USER_LENGTH 19
 #define CMD_MAX 32
 static uint8_t currentFontSize = 1;
+
 
 void displayHelp() {
     print("Comandos disponibles:\n");
@@ -8,10 +10,10 @@ void displayHelp() {
     print("  help    - Muestra esta ayuda\n");
     print("  clear   - Limpia la pantalla\n");
     print("  time    - Muestra la hora actual del sistema\n");
-    print("  ex1     - Genera una excepción de división por cero\n");
-    print("  ex2     - Genera una excepción de acceso inválido a memoria\n");
+    print("  ex1     - Genera una excepcion de division por cero\n");
+    print("  ex2     - Genera una excepcion de acceso invalido a memoria\n");
     print("  regs    - Muestra el valor de todos los registros del procesador\n");
-    print("  font    - Cambia el tamaño de la fuente (alterna entre pequeño y grande)\n");
+    print("  font    - Cambia el tamanio de la fuente (alterna entre pequenio y grande)\n");
 }
 
 void displayRegisters() {
@@ -26,7 +28,7 @@ void displayRegisters() {
     };
     
     print("Valores de los registros:\n");
-    for (int i = 0; i < 19; i++) {
+    for (int i = 0; i < USER_LENGTH; i++) {
         print("  ");
         print(regNames[i]);
         print(" = 0x");
@@ -45,7 +47,6 @@ void displayRegisters() {
 void shell() {
     char cmd[CMD_MAX];
     int cmdLen = 0;
-    int promptLength = 19; // Longitud de "@mark_zuckerberg$> " asi no me lo borran...
 
     print("@mark_zuckerberg$> ");
 
