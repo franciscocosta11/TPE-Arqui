@@ -1,7 +1,13 @@
 #ifndef EXCEPTIONS_H
 #define EXCEPTIONS_H
 
-extern void _exception0Handler(void);
-extern void _exception06Handler(void);
+#include <stdint.h>
 
-#endif // EXCEPTIONS_H
+// Función principal del dispatcher de excepciones
+void exceptionDispatcher(uint64_t exception, uint64_t *stack_frame);
+
+// Funciones para test de excepciones
+void triggerDivisionByZero(void);
+void triggerInvalidOpcode(void);
+
+#endif

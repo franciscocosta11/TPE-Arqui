@@ -3,7 +3,8 @@
     EXTERN keyboard_irq_handler
     EXTERN irqDispatcher
     EXTERN syscallDispatcher
-
+    GLOBAL _exception0Handler    
+    GLOBAL _exception06Handler     
     GLOBAL picMasterMask
     GLOBAL picSlaveMask
     GLOBAL _sti

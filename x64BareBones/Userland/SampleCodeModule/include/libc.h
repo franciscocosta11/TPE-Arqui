@@ -26,5 +26,7 @@ void getTime(char *buffer);
 void getRegisters(uint64_t *regs);
 void triggerException(int exceptionNumber);
 void setFontSize(uint8_t size);
+int setTextColor(char* colorName);
+void printAvailableColors(void);
 
 #endif

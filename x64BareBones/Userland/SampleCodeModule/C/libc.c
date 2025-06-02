@@ -49,3 +49,28 @@ void triggerException(int exceptionNumber) {
 void setFontSize(uint8_t size) {
     syscall(SYS_FONT_SIZE, size, 0, 0);
 }
+
+
+int setTextColor(char* colorName) {
+    // Tabla de colores para validación
+    const char* valid_colors[] = {
+        "white", "red", "green", "blue", "yellow", "cyan", 
+        "magenta", "orange", "purple", "pink", "gray", 
+        "lightgray", "darkgray", 0
+    };
+    
+    // Verificar si el color existe
+    for (int i = 0; valid_colors[i] != 0; i++) {
+        if (strcmp(colorName, valid_colors[i]) == 0) {
+            // Llamar syscall para cambiar color (CORREGIDO el cast)
+            syscall(7, (uint64_t)colorName, 0, 0); 
+            return 1; // Éxito
+        }
+    }
+    
+    return 0; // Color no encontrado
+}
+
+void printAvailableColors(void) {
+    print("Colores disponibles: white, red, green, blue, yellow, cyan, magenta, orange, purple, pink, gray, lightgray, darkgray\n");
+}

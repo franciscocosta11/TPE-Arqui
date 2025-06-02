@@ -5,11 +5,11 @@
 
 extern void saveRegisters(uint64_t* regs);
 
-void syscallDispatcher(uint64_t rax, uint64_t rdi, uint64_t rsi, uint64_t rdx) {
+void syscallDispatcher(uint64_t rax, uint64_t rsi, uint64_t rdx, uint64_t rcx) {
     switch (rax) {
-        case 0: // SYS_READ - lee un carácter del teclado
+        case 0: // SYS_READ
             {
-                char* buffer = (char*)rdi;
+                char* buffer = (char*)rsi;  // CAMBIADO: era rdi, ahora rsi
                 if (buffer != 0) {
                     *buffer = keyboard_getchar();
                 }
@@ -18,7 +18,7 @@ void syscallDispatcher(uint64_t rax, uint64_t rdi, uint64_t rsi, uint64_t rdx) {
             
         case 1: // SYS_WRITE 
             {
-                char* buffer = (char*)rdi;
+                char* buffer = (char*)rsi;  // CAMBIADO: era rdi, ahora rsi
                 while (buffer != 0 && *buffer) {
                     vdPrintChar(*buffer);
                     buffer++;
@@ -26,48 +26,49 @@ void syscallDispatcher(uint64_t rax, uint64_t rdi, uint64_t rsi, uint64_t rdx) {
             }
             break;
             
-        case 2: // SYS_CLEAR - limpia la pantalla
-            vdClear();  // Llama a la función de limpieza del video driver
+        case 2: // SYS_CLEAR
+            vdClear();
             break;
-        case 3: // SYS_TIME - obtiene la hora del sistema
+            
+        case 3: // SYS_TIME
             {
-                char* buffer = (char*)rdi;
+                char* buffer = (char*)rsi;  // CAMBIADO: era rdi, ahora rsi
                 if (buffer != 0) {
                     getSystemTime(buffer);
                 }
             }
             break;
             
-        case 4: // SYS_REGISTERS - obtiene los valores de los registros
+        case 4: // SYS_REGISTERS
             {
-                uint64_t* regs = (uint64_t*)rdi;
+                uint64_t* regs = (uint64_t*)rsi;  // CAMBIADO: era rdi, ahora rsi
                 if (regs != 0) {
                     saveRegisters(regs);
                 }
             }
             break;
             
-        case 5: // SYS_EXCEPTION - genera intencionalmente una excepción
+        case 6: // SYS_FONT_SIZE
             {
-                int exceptionNumber = (int)rdi;
-                if (exceptionNumber == 0) {
-                    // División por cero
-                    int zero = 0;
-                    int result = 1 / zero;
-                    (void)result; // Para evitar warning de variable no usada
-                }
-                else if (exceptionNumber == 1) {
-                    // Acceso a memoria inválida
-                    char *ptr = (char*)0x0;
-                    *ptr = 'X';
-                }
-            }
-            break;
-        case 6: // SYS_FONT_SIZE - cambia el tamaño de la fuente
-            {
-                uint8_t size = (uint8_t)rdi;
+                uint8_t size = (uint8_t)rsi;  // CAMBIADO: era rdi, ahora rsi
                 vdSetFontSize(size);
             }
             break;
+            
+        case 7: // SYS_SET_COLOR
+            {
+         
+                char* colorName = (char*)rsi;  // CAMBIADO: era rdi, ahora rsi
+                if (colorName != 0) {
+                    uint32_t color = vdGetColorByName(colorName);
+                    vdSetColor(color);
+                    vdPrint("Color cambiado correctamente!\n");
+                }
+            }
+            break;
+            
+        // default:
+        //     vdPrint("SYSCALL DESCONOCIDO\n");
+        //     break;
     }
 }

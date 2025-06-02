@@ -7,13 +7,11 @@
 #define CAPS_LOCK_REL 0xBA
 #define LSHIFT 0x2A
 #define RSHIFT 0x36
-#define LSHIFT_REL 0xAA  // Código cuando se suelta la tecla shift izquierda
-#define RSHIFT_REL 0xB6  // Código cuando se suelta la tecla shift derecha
+#define LSHIFT_REL 0xAA
+#define RSHIFT_REL 0xB6
 
-// Flags para el estado del teclado
 static int shift_pressed = 0;
 static int caps_lock_on = 0; 
-
 
 static const char keymap[128] = {
     [0x02] = '1', [0x03] = '2', [0x04] = '3', [0x05] = '4',
@@ -34,7 +32,6 @@ static const char keymap[128] = {
     [0x39] = ' '
 };
 
-// Mapa de caracteres cuando shift está presionado
 static const char keymap_shift[128] = {
     [0x02] = '!', [0x03] = '@', [0x04] = '#', [0x05] = '$',
     [0x06] = '%', [0x07] = '^', [0x08] = '&', [0x09] = '*',
@@ -60,7 +57,6 @@ static volatile int  ready  = 0;
 void keyboard_irq_handler(void) {
     uint8_t sc = inb(0x60);
     
-    // Manejar Shift
     if (sc == LSHIFT || sc == RSHIFT) {
         shift_pressed = 1;
         return;
@@ -69,39 +65,32 @@ void keyboard_irq_handler(void) {
         return;
     }
     
-    // Manejar Caps Lock (solo cuando se toca, no cuando se suelta)
     if (sc == CAPS_LOCK) {
-        caps_lock_on = !caps_lock_on;  // Toggle Caps Lock
+        caps_lock_on = !caps_lock_on;
         return;
     } else if (sc == CAPS_LOCK_REL) {
-        return;  // Ignorar la liberación de Caps Lock
+        return;
     }
     
-    // Ignorar todas las demás teclas liberadas
     if (sc & 0x80) {
         return;
     }
     
-    // Elegir el mapa correcto según shift y caps lock
     char c;
     
-    // Es una letra?
     if ((sc >= 0x10 && sc <= 0x19) || (sc >= 0x1E && sc <= 0x26) || (sc >= 0x2C && sc <= 0x32)) {
-        // Para letras: si shift y caps lock están activos juntos, se cancelan mutuamente
         if ((shift_pressed && !caps_lock_on) || (!shift_pressed && caps_lock_on)) {
             c = keymap_shift[sc];
         } else {
             c = keymap[sc];
         }
     } else {
-        // Para no letras: solo shift importa, caps lock no 
         c = shift_pressed ? keymap_shift[sc] : keymap[sc];
     }
     
     if (c) {
         buffer = c;
         ready = 1;
-        //vdPrintChar(c);
     }
 }
 
@@ -110,7 +99,20 @@ void keyboard_init(void) {
 }
 
 char keyboard_getchar(void) {
-    while (!ready) { _hlt(); }
+    while (!ready) { 
+        _hlt(); 
+    }
     ready = 0;
     return buffer;
+}
+
+// AGREGADO: Función para limpiar el buffer después de excepciones
+void keyboard_clear_buffer(void) {
+    ready = 0;
+    buffer = 0;
+    
+    // Limpiar cualquier tecla pendiente en el buffer del hardware
+    while (inb(0x64) & 0x01) {  // Mientras haya datos en el buffer
+        inb(0x60);  // Leer y descartar
+    }
 }

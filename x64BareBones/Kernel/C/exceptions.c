@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <videoDriver.h>
+#include <keyboard.h>  
 
 // Definición de IDs de excepciones
 #define ZERO_EXCEPTION_ID 0
@@ -16,16 +17,37 @@ typedef struct {
 static void zero_division(registers_t *regs);
 static void invalid_opcode(registers_t *regs);
 
-// Función principal que distribuye las excepciones
-void exceptionDispatcher(int exception, registers_t *regs) {
+void exceptionDispatcher(uint64_t exception, uint64_t *stack_frame) {
+    // Convertir el stack frame a nuestra estructura de registros
+    registers_t regs;
+    regs.rax = stack_frame[0];
+    regs.rbx = stack_frame[1]; 
+    regs.rcx = stack_frame[2];
+    regs.rdx = stack_frame[3];
+    //
+    regs.rdi = stack_frame[5];
+    regs.rsi = stack_frame[6];
+    regs.r8 = stack_frame[7];
+    regs.r9 = stack_frame[8];
+    regs.r10 = stack_frame[9];
+    regs.r11 = stack_frame[10];
+    regs.r12 = stack_frame[11];
+    regs.r13 = stack_frame[12];
+    regs.r14 = stack_frame[13];
+    regs.r15 = stack_frame[14];
+
     switch (exception) {
         case ZERO_EXCEPTION_ID:
-            zero_division(regs);
+            zero_division(&regs);
             break;
         case INVALID_OPCODE_ID:
-            invalid_opcode(regs);
+            invalid_opcode(&regs);
             break;
     }
+    
+    keyboard_clear_buffer();
+    
+    stack_frame[15] += 2; // Saltar la instrucción problemática
 }
 
 // Función auxiliar para imprimir registros
@@ -72,7 +94,6 @@ static void zero_division(registers_t *regs) {
     vdPrint("\n Returning to shell...\n\n");
 }
 
-// Handler para código de operación inválido
 static void invalid_opcode(registers_t *regs) {
     vdPrint("[EXCEPTION] Invalid opcode\n\n");
     print_registers(regs);
