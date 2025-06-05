@@ -29,4 +29,20 @@ void setFontSize(uint8_t size);
 int setTextColor(char* colorName);
 void printAvailableColors(void);
 
+void fillScreen(uint32_t color);
+char getKeyNonBlocking(void);
+void playBeep(void);
+void playWinSound(void);
+void putPixel(uint32_t color, uint64_t x, uint64_t y);
+void drawRectangle(uint32_t color, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
+
+// Funciones matemáticas
+int abs(int x);
+int isqrt(int x);  // Raíz cuadrada entera
+int strlen(const char* str);
+
+// Función del juego
+void startGolfGame(void);
+
+
 #endif

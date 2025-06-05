@@ -26,7 +26,7 @@ void vdSetFontSize(uint8_t size);
 void vdSetColor(uint32_t fgColor);
 uint32_t vdGetColorByName(const char* colorName);
 void vdPrintAvailableColors();
-
+void vdFillScreen(uint32_t color);
 // Función para strcmp (si no está definida en otro lugar)
 int strcmp(const char *s1, const char *s2);
 

@@ -1,10 +1,14 @@
 #include "./../include/libc.h"
 #define USER_LENGTH 19
-#define CMD_MAX 64    
+#define CMD_MAX 64
 #define USERNAME_MAX 32
 static uint8_t currentFontSize = 1;
 
+// AGREGADO: Variable global para el nombre de usuario
 static char username[USERNAME_MAX] = "mark_zuckerberg";
+
+// AGREGADO: Declaración del juego
+void startGolfGame(void);
 
 // Funciones inline para provocar excepciones
 static void triggerDivisionByZero(void) {
@@ -18,12 +22,14 @@ static void triggerInvalidOpcode(void) {
     __asm__ volatile("ud2");
 }
 
+// Función para imprimir el prompt con el usuario actual
 void printPrompt() {
     print("@");
     print(username);
     print("$> ");
 }
 
+// Función para parsear comandos con argumentos
 int parseCommand(char* input, char* command, char* argument) {
     int i = 0, j = 0;
     
@@ -49,7 +55,7 @@ int parseCommand(char* input, char* command, char* argument) {
     }
     argument[j] = '\0';
     
-    return (argument[0] != '\0') ? 1 : 0; // Retorna 1 si hay argumento
+    return (argument[0] != '\0') ? 1 : 0;
 }
 
 void displayHelp() {
@@ -64,6 +70,7 @@ void displayHelp() {
     print("  font     - Cambia el tamanio de la fuente\n");
     print("  color <nombre> - Cambia el color del texto\n");
     print("  user <nombre>  - Cambia el nombre de usuario\n");
+    print("  golf     - Inicia el juego Pongis-Golf\n");
 }
 
 void displayRegisters() {
@@ -122,7 +129,7 @@ void shell() {
             int hasArgument = parseCommand(input, command, argument);
 
             if (strcmp(command, "ls") == 0) {
-                print("Comandos disponibles: ls, help, ex1, ex2, time, regs, clear, font, color, user\n");
+                print("Comandos disponibles: ls, help, ex1, ex2, time, regs, clear, font, color, user, golf\n");
             }
             else if (strcmp(command, "help") == 0) {
                 displayHelp();
@@ -175,12 +182,10 @@ void shell() {
             }
             else if (strcmp(command, "user") == 0) {
                 if (hasArgument) {
-                    // Validar longitud del nombre
                     int len = 0;
                     while (argument[len] != '\0' && len < USERNAME_MAX - 1) len++;
                     
                     if (len > 0 && len < USERNAME_MAX - 1) {
-                        // Copiar nuevo nombre de usuario
                         for (int i = 0; i <= len; i++) {
                             username[i] = argument[i];
                         }
@@ -196,6 +201,14 @@ void shell() {
                     print(username);
                     print("\n");
                 }
+            }
+            // AGREGADO: Comando golf
+            else if (strcmp(command, "golf") == 0) {
+                print("Iniciando Pongis-Golf...\n");
+                startGolfGame();
+                // Cuando regrese del juego, limpiar pantalla y mostrar prompt
+                clearScreen();
+                print("¡Gracias por jugar Pongis-Golf!\n");
             }
             else if (inputLen > 0) {
                 print("Comando no encontrado: ");

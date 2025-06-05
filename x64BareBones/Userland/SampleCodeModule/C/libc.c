@@ -74,3 +74,68 @@ int setTextColor(char* colorName) {
 void printAvailableColors(void) {
     print("Colores disponibles: white, red, green, blue, yellow, cyan, magenta, orange, purple, pink, gray, lightgray, darkgray\n");
 }
+
+// Agregar estas funciones a libc.c
+
+// Función para llenar toda la pantalla con un color
+void fillScreen(uint32_t color) {
+    syscall(8, (uint64_t)color, 0, 0);
+}
+
+// Función para obtener tecla sin bloquear
+char getKeyNonBlocking(void) {
+    char key = 0;
+    syscall(9, (uint64_t)&key, 0, 0);  // Pasar puntero al buffer
+    return key;
+}
+// Función para reproducir sonido (beep)
+void playBeep(void) {
+    syscall(10, 440, 100, 0); // 440Hz por 100ms
+}
+
+// Función para reproducir sonido de victoria
+void playWinSound(void) {
+    syscall(10, 880, 200, 0); // 880Hz por 200ms
+}
+
+// Funciones matemáticas básicas
+int abs(int x) {
+    return x < 0 ? -x : x;
+}
+
+// Función para raíz cuadrada entera (aproximación)
+int isqrt(int x) {
+    if (x == 0) return 0;
+    
+    int guess = x / 2;
+    int prev_guess = 0;
+    
+    while (guess != prev_guess) {
+        prev_guess = guess;
+        guess = (guess + x / guess) / 2;
+    }
+    
+    return guess;
+}
+
+int strlen(const char* str) {
+    int len = 0;
+    while (str[len] != '\0') {
+        len++;
+    }
+    return len;
+}
+
+// Agregar estas funciones a libc.c
+
+void putPixel(uint32_t color, uint64_t x, uint64_t y) {
+    syscall(11, (uint64_t)color, x, y);
+}
+
+void drawRectangle(uint32_t color, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2) {
+    for (int y = y1; y < y2; y++) {
+        for (int x = x1; x < x2; x++) {
+            putPixel(color, x, y);
+        }
+    }
+}

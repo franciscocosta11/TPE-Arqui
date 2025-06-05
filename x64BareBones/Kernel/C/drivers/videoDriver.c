@@ -244,3 +244,14 @@ void vdSetColor(uint32_t fgColor) {
         // Es rojo, debug sin usar el color nuevo todavía
     }
 }
+
+// Agregar estas funciones a videoDriver.c
+
+// Función para llenar toda la pantalla con un color
+void vdFillScreen(uint32_t color) {
+    for (uint16_t y = 0; y < SCREEN_HEIGHT_PIXELS; y++) {
+        for (uint16_t x = 0; x < SCREEN_WIDTH_PIXELS; x++) {
+            putPixel(color, x, y);
+        }
+    }
+}
