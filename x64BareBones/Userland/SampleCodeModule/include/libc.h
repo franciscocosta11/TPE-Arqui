@@ -12,6 +12,15 @@
 #define SYS_EXCEPTION  5
 #define SYS_FONT_SIZE  6
 
+#define SYS_PLAY_SOUND     10
+#define SYS_PLAY_BEEP      13  
+#define SYS_PLAY_WIN_SOUND 14
+#define SYS_SOUND_OFF      15
+
+// Y agregar estas declaraciones de funciones:
+void playSound(uint32_t frequency, uint32_t duration);
+void soundOff(void);
+
 // Función genérica para syscalls
 uint64_t syscall(uint64_t syscall_number, uint64_t arg1, uint64_t arg2, uint64_t arg3);
 
@@ -44,5 +53,12 @@ int strlen(const char* str);
 // Función del juego
 void startGolfGame(void);
 
+
+
+// Y las declaraciones:
+void playSound(uint32_t frequency, uint32_t duration);
+void playBeep(void);
+void playWinSound(void);
+void soundOff(void);
 
 #endif

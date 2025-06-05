@@ -4,10 +4,10 @@
 #define USERNAME_MAX 32
 static uint8_t currentFontSize = 1;
 
-// AGREGADO: Variable global para el nombre de usuario
+// Variable global para el nombre de usuario
 static char username[USERNAME_MAX] = "mark_zuckerberg";
 
-// AGREGADO: Declaración del juego
+// Declaración del juego
 void startGolfGame(void);
 
 // Funciones inline para provocar excepciones
@@ -106,6 +106,10 @@ void shell() {
     char argument[USERNAME_MAX];
     int inputLen = 0;
 
+    // SONIDO DE BIENVENIDA (SOLO UNA VEZ)
+    print("¡Bienvenido al sistema!\n");
+    playWinSound();
+    
     printPrompt();
 
     while (1) {
@@ -202,11 +206,12 @@ void shell() {
                     print("\n");
                 }
             }
-            // AGREGADO: Comando golf
+            // COMANDO GOLF CON SONIDO DE INICIO
             else if (strcmp(command, "golf") == 0) {
                 print("Iniciando Pongis-Golf...\n");
+                playBeep(); // SONIDO AL INICIAR GOLF
                 startGolfGame();
-                // Cuando regrese del juego, limpiar pantalla y mostrar prompt
+                // Cuando regrese del juego
                 clearScreen();
                 print("¡Gracias por jugar Pongis-Golf!\n");
             }

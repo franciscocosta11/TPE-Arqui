@@ -18,10 +18,10 @@
 #define COLOR_YELLOW  0xFFFF00
 #define COLOR_BLUE    0x0000FF 
 
-// Estructura para la pelota (usando enteros con escala)
+// Estructura para la pelota
 typedef struct {
-    int x, y;      // Posición en píxeles
-    int vx, vy;    // Velocidad * 100 para simular decimales
+    int x, y;      
+    int vx, vy;    
     int size;
 } Ball;
 
@@ -43,7 +43,11 @@ static Paddle paddle;
 static Hole hole;
 static int hits = 0;
 static int gameRunning = 1;
-// AGREGAR tablas trigonométricas simplificadas (24 direcciones = 15° cada una)
+
+// Variables para generador de números aleatorios simple
+static unsigned int random_seed = 1;
+
+// Tablas trigonométricas simplificadas
 static int cos_table[24] = {
     100, 97, 87, 71, 50, 26, 0, -26, -50, -71, -87, -97,
     -100, -97, -87, -71, -50, -26, 0, 26, 50, 71, 87, 97
@@ -54,9 +58,7 @@ static int sin_table[24] = {
     0, 26, 50, 71, 87, 97, 100, 97, 87, 71, 50, 26
 };
 
-// NUEVAS VARIABLES para el sistema de dirección:
-static int aim_angle = 0;  // Ángulo en grados (0-360)
-// Índice actual (0-7)
+static int aim_angle = 0;
 
 // Declaraciones de funciones
 void initGame(void);
@@ -66,16 +68,14 @@ void handleInput(void);
 void drawRect(int x, int y, int width, int height, uint32_t color);
 void drawCircle(int centerX, int centerY, int radius, uint32_t color);
 void drawNumber(int number, int x, int y);
-int checkCollision(void);
 void resetBall(void);
-char waitForKey(void);
 void drawLine(int x1, int y1, int x2, int y2, uint32_t color);
 void drawAimArrow(void);
+void placeHoleRandomly(void);
+void showHoleMessage(void);
+int simpleRandom(int min, int max);
 
-
-// Función principal del juego
 void startGolfGame(void) {
-    // Mensaje de bienvenida
     clearScreen();
     print("========================================\n");
     print("         BIENVENIDO A PONGIS-GOLF       \n");
@@ -84,100 +84,117 @@ void startGolfGame(void) {
     print("Instrucciones:\n");
     print("- Usa las flechas para mover el palo\n");
     print("- Golpea la pelota para que entre al hoyo\n");
+    print("- El hoyo aparece en lugares aleatorios\n");
     print("- ESC para salir del juego\n");
     print("\n");
     print("Presiona ENTER para comenzar...\n");
     
-    // Esperar ENTER
     char key;
     do {
         key = getchar();
     } while (key != '\n' && key != '\r');
     
-    // Inicializar juego
     initGame();
     
-    // Loop principal del juego
     while (gameRunning) {
         handleInput();
         updateGame();
         drawGame();
         
-        // Pequeño delay para controlar FPS
         for (volatile int i = 0; i < 50000; i++); 
     }
+}
+
+int simpleRandom(int min, int max) {
+    random_seed = random_seed * 1103515245 + 12345;
+    return min + (random_seed % (max - min + 1));
+}
+
+void placeHoleRandomly(void) {
+    int margin = HOLE_SIZE + 20;
+    
+    do {
+        hole.x = simpleRandom(margin, SCREEN_WIDTH - margin);
+        hole.y = simpleRandom(margin, SCREEN_HEIGHT - margin);
+        
+        int dx = hole.x - ball.x;
+        int dy = hole.y - ball.y;
+        int distance_sq = dx*dx + dy*dy;
+        int min_distance = 150;
+        
+        if (distance_sq > min_distance * min_distance) {
+            break;
+        }
+    } while (1);
 }
 
 void initGame(void) {
     fillScreen(COLOR_GREEN);
     
-    // Pelota en el centro
+    random_seed = 12345;
+    
     ball.x = SCREEN_WIDTH / 2;
     ball.y = SCREEN_HEIGHT / 2;
     ball.vx = 0;
     ball.vy = 0;
     ball.size = BALL_SIZE;
     
-    // Palo empezando a la izquierda
     paddle.x = 50;
     paddle.y = SCREEN_HEIGHT / 2 - (BALL_SIZE * 3);
     paddle.width = BALL_SIZE * 6;
     paddle.height = BALL_SIZE * 6;
     
-    // Hoyo a la derecha
-    hole.x = SCREEN_WIDTH - 100;
-    hole.y = SCREEN_HEIGHT / 2;
     hole.size = HOLE_SIZE;
+    placeHoleRandomly();
     
     hits = 0;
     gameRunning = 1;
-    aim_angle = 0; // CAMBIADO: Empezar apuntando a la derecha (0°)
+    aim_angle = 0;
 }
+
 void drawGame(void) {
-    // Variables estáticas para recordar posiciones anteriores
     static int last_ball_x = -1, last_ball_y = -1;
     static int last_paddle_x = -1, last_paddle_y = -1;
+    static int last_hole_x = -1, last_hole_y = -1;
     static int last_angle = -1;
     static int initialized = 0;
     
-    // Primera vez: dibujar todo
     if (!initialized) {
         fillScreen(COLOR_GREEN);
         initialized = 1;
     }
     
-    // DIBUJAR HOYO SIEMPRE (no solo en inicialización)
+    if (last_hole_x != -1 && (last_hole_x != hole.x || last_hole_y != hole.y)) {
+        drawCircle(last_hole_x, last_hole_y, hole.size + 2, COLOR_GREEN);
+    }
+    
     drawCircle(hole.x, hole.y, hole.size, COLOR_BLACK);
     
-    // Limpiar solo lo que se movió
     if (last_ball_x != -1 && (last_ball_x != ball.x || last_ball_y != ball.y)) {
         drawCircle(last_ball_x, last_ball_y, ball.size + 2, COLOR_GREEN);
     }
     
     if (last_paddle_x != -1 && (last_paddle_x != paddle.x || last_paddle_y != paddle.y || last_angle != aim_angle)) {
-        // Limpiar área anterior del palo y flecha
         int old_center_x = last_paddle_x + paddle.width/2;
         int old_center_y = last_paddle_y + paddle.height/2;
         drawRect(old_center_x - 40, old_center_y - 40, 80, 80, COLOR_GREEN);
     }
     
-    // Dibujar pelota
     drawCircle(ball.x, ball.y, ball.size, COLOR_WHITE);
     
-    // Dibujar palo y flecha
     int paddle_center_x = paddle.x + paddle.width/2;
     int paddle_center_y = paddle.y + paddle.height/2;
     drawCircle(paddle_center_x, paddle_center_y, paddle.width/2, COLOR_GRAY);
     drawAimArrow();
     
-    // Actualizar posiciones
     last_ball_x = ball.x;
     last_ball_y = ball.y;
     last_paddle_x = paddle.x;
     last_paddle_y = paddle.y;
+    last_hole_x = hole.x;
+    last_hole_y = hole.y;
     last_angle = aim_angle;
     
-    // Contador
     static int last_hits = -1;
     if (hits != last_hits) {
         drawRect(SCREEN_WIDTH - 150, 10, 140, 40, COLOR_YELLOW);
@@ -185,7 +202,6 @@ void drawGame(void) {
         last_hits = hits;
     }
 }
-
 
 void handleInput(void) {
     char key = getKeyNonBlocking();
@@ -195,24 +211,22 @@ void handleInput(void) {
             gameRunning = 0;
             break;
             
-        case 75: // Flecha IZQUIERDA - rotar antihorario (más suave)
-            aim_angle = (aim_angle - 15 + 360) % 360; // Rotar 15° por vez
+        case 75: // Flecha IZQUIERDA
+            aim_angle = (aim_angle - 15 + 360) % 360;
             break;
             
-        case 77: // Flecha DERECHA - rotar horario
-            aim_angle = (aim_angle + 15) % 360; // Rotar 15° por vez
+        case 77: // Flecha DERECHA
+            aim_angle = (aim_angle + 15) % 360;
             break;
             
-        case 72: // Flecha ARRIBA - mover hacia donde apunta
+        case 72: // Flecha ARRIBA
             {
-                // Calcular dirección usando trigonometría simple (aproximada)
-                int angle_x = cos_table[aim_angle / 15]; // Usar tabla de cosenos
-                int angle_y = sin_table[aim_angle / 15]; // Usar tabla de senos
+                int angle_x = cos_table[aim_angle / 15];
+                int angle_y = sin_table[aim_angle / 15];
                 
-                int new_x = paddle.x + (angle_x * 8) / 100; // Dividir por 100 para escalar
+                int new_x = paddle.x + (angle_x * 8) / 100;
                 int new_y = paddle.y + (angle_y * 8) / 100;
                 
-                // Verificar límites
                 if (new_x >= 0 && new_x + paddle.width <= SCREEN_WIDTH &&
                     new_y >= 0 && new_y + paddle.height <= SCREEN_HEIGHT) {
                     paddle.x = new_x;
@@ -224,7 +238,6 @@ void handleInput(void) {
 }
 
 void updateGame(void) {
-    // Variables estáticas para detectar velocidad de impacto
     static int last_paddle_x = -1, last_paddle_y = -1;
     static int collision_cooldown = 0;
     static int was_far = 1;
@@ -233,7 +246,6 @@ void updateGame(void) {
         collision_cooldown--;
     }
     
-    // DETECCIÓN DE COLISIÓN
     int paddle_center_x = paddle.x + paddle.width/2;
     int paddle_center_y = paddle.y + paddle.height/2;
     int dx_collision = ball.x - paddle_center_x;
@@ -241,13 +253,11 @@ void updateGame(void) {
     int collision_distance_sq = dx_collision*dx_collision + dy_collision*dy_collision;
     int collision_radius = (ball.size + paddle.width/2 - 8);
     
-    // Detectar si estaba lejos antes
     int far_distance = (collision_radius + 25) * (collision_radius + 25);
     if (collision_distance_sq > far_distance) {
         was_far = 1;
     }
     
-    // CALCULAR VELOCIDAD REAL DEL PALO
     int paddle_speed = 0;
     if (last_paddle_x != -1) {
         int paddle_dx = paddle.x - last_paddle_x;
@@ -255,7 +265,6 @@ void updateGame(void) {
         paddle_speed = isqrt(paddle_dx*paddle_dx + paddle_dy*paddle_dy);
     }
     
-    // COLISIÓN con velocidad REALMENTE proporcional
     if (collision_distance_sq < (collision_radius * collision_radius) && 
         collision_cooldown == 0 &&
         was_far == 1 &&
@@ -263,25 +272,19 @@ void updateGame(void) {
         
         int dist = isqrt(collision_distance_sq);
         if (dist > 1) {
-            // VELOCIDAD DIRECTAMENTE PROPORCIONAL a la velocidad del palo
-            int base_impact = 150;  // Velocidad base mínima
-            int speed_multiplier = paddle_speed * 80; // Multiplicador de velocidad
-            
-            // La velocidad final depende DIRECTAMENTE de qué tan rápido se mueve el palo
+            int base_impact = 150;
+            int speed_multiplier = paddle_speed * 80;
             int final_speed = base_impact + speed_multiplier;
             
-            // Limitar velocidades extremas
-            if (final_speed < 150) final_speed = 150;   // Mínimo
-            if (final_speed > 1200) final_speed = 1200; // Máximo
+            if (final_speed < 150) final_speed = 150;
+            if (final_speed > 1200) final_speed = 1200;
             
-            // Aplicar la velocidad en la dirección del impacto
             ball.vx = (dx_collision * final_speed) / dist;
             ball.vy = (dy_collision * final_speed) / dist;
             
             hits++;
-            playBeep();
+            // SIN SONIDO AL GOLPEAR - solo incrementar hits
             
-            // EVITAR TRASPASO
             int separation = collision_radius + 15;
             ball.x = paddle_center_x + (dx_collision * separation) / dist;
             ball.y = paddle_center_y + (dy_collision * separation) / dist;
@@ -294,11 +297,9 @@ void updateGame(void) {
     last_paddle_x = paddle.x;
     last_paddle_y = paddle.y;
     
-    // FÍSICA DE MOVIMIENTO (resto igual)
     ball.x += ball.vx / 100;
     ball.y += ball.vy / 100;
     
-    // FRICCIÓN GRADUAL
     ball.vx = (ball.vx * 995) / 1000;
     ball.vy = (ball.vy * 995) / 1000;
     
@@ -307,7 +308,6 @@ void updateGame(void) {
         ball.vy = 0;
     }
     
-    // REBOTES EN PAREDES
     if (ball.x - ball.size <= 0) {
         ball.x = ball.size;
         ball.vx = -ball.vx * 80 / 100;
@@ -325,26 +325,72 @@ void updateGame(void) {
         ball.vy = -ball.vy * 80 / 100;
     }
     
-    // VERIFICAR GOL (igual)
+    // VERIFICAR GOL
     int dx = ball.x - hole.x;
     int dy = ball.y - hole.y;
     int distance_sq = dx*dx + dy*dy;
     int min_distance_sq = (hole.size - ball.size) * (hole.size - ball.size);
     
     if (distance_sq < min_distance_sq) {
-        playWinSound();
-        fillScreen(COLOR_YELLOW);
-        drawRect(250, 200, 300, 60, COLOR_BLUE);
-        drawNumber(hits, 450, 300);
-        for (volatile int i = 0; i < 3000000; i++);
-        fillScreen(COLOR_GREEN);
+        // ¡HOYO! - ÚNICO SONIDO EN EL JUEGO
+        showHoleMessage();
         resetBall();
+        placeHoleRandomly();
         hits = 0;
     }
 }
 
+void showHoleMessage(void) {
+    // SONIDO DE VICTORIA AL ANOTAR
+    playWinSound();
+    
+    fillScreen(COLOR_YELLOW);
+    
+    drawRect(200, 300, 600, 150, COLOR_BLUE);
+    drawRect(210, 310, 580, 130, COLOR_WHITE);
+    
+    int start_x = 300;
+    int start_y = 350;
+    
+    // H
+    drawRect(start_x, start_y, 10, 50, COLOR_BLACK);
+    drawRect(start_x + 20, start_y, 10, 50, COLOR_BLACK);
+    drawRect(start_x, start_y + 20, 30, 10, COLOR_BLACK);
+    
+    // O
+    start_x += 50;
+    drawRect(start_x, start_y, 30, 10, COLOR_BLACK);
+    drawRect(start_x, start_y + 40, 30, 10, COLOR_BLACK);
+    drawRect(start_x, start_y, 10, 50, COLOR_BLACK);
+    drawRect(start_x + 20, start_y, 10, 50, COLOR_BLACK);
+    
+    // Y
+    start_x += 50;
+    drawRect(start_x, start_y, 10, 25, COLOR_BLACK);
+    drawRect(start_x + 20, start_y, 10, 25, COLOR_BLACK);
+    drawRect(start_x + 10, start_y + 20, 10, 30, COLOR_BLACK);
+    
+    // O
+    start_x += 50;
+    drawRect(start_x, start_y, 30, 10, COLOR_BLACK);
+    drawRect(start_x, start_y + 40, 30, 10, COLOR_BLACK);
+    drawRect(start_x, start_y, 10, 50, COLOR_BLACK);
+    drawRect(start_x + 20, start_y, 10, 50, COLOR_BLACK);
+    
+    // !
+    start_x += 50;
+    drawRect(start_x + 10, start_y, 10, 35, COLOR_BLACK);
+    drawRect(start_x + 10, start_y + 40, 10, 10, COLOR_BLACK);
+    
+    drawNumber(hits, 450, 280);
+    
+    for (volatile int i = 0; i < 15000000; i++);
+    
+    fillScreen(COLOR_GREEN);
+}
+
 void resetBall(void) {
-    ball.x = 100;
+    ball.x = SCREEN_WIDTH / 2;
     ball.y = SCREEN_HEIGHT / 2;
     ball.vx = 0;
     ball.vy = 0;
@@ -365,7 +411,6 @@ void drawCircle(int centerX, int centerY, int radius, uint32_t color) {
 }
 
 void drawNumber(int number, int x, int y) {
-    // Convertir número a string
     char numStr[10];
     int i = 0;
     
@@ -379,7 +424,6 @@ void drawNumber(int number, int x, int y) {
         }
         numStr[i] = '\0';
         
-        // Invertir string
         for (int j = 0; j < i/2; j++) {
             char temp = numStr[j];
             numStr[j] = numStr[i-1-j];
@@ -387,12 +431,10 @@ void drawNumber(int number, int x, int y) {
         }
     }
     
-    // Dibujar cada dígito como pequeños rectángulos (representación simple)
     for (int digit = 0; digit < strlen(numStr); digit++) {
         char c = numStr[digit];
         int digit_x = x + (digit * 20);
         
-        // Patrón simple para cada número (matriz 3x5)
         int patterns[10][15] = {
             {1,1,1,1,0,1,1,0,1,1,0,1,1,1,1}, // 0
             {0,1,0,0,1,0,0,1,0,0,1,0,0,1,0}, // 1
@@ -416,26 +458,22 @@ void drawNumber(int number, int x, int y) {
         }
     }
 }
-// AGREGAR esta función después de drawNumber():
+
 void drawAimArrow(void) {
     int paddle_center_x = paddle.x + paddle.width/2;
     int paddle_center_y = paddle.y + paddle.height/2;
     
-    // Calcular dirección usando las tablas trigonométricas
     int angle_index = aim_angle / 15;
     int dir_x = cos_table[angle_index];
     int dir_y = sin_table[angle_index];
     
-    // FLECHA MÁS CORTA: solo 25 píxeles en lugar de 50
     int tip_x = paddle_center_x + (dir_x * 25) / 100;
     int tip_y = paddle_center_y + (dir_y * 25) / 100;
     
-    // Dibujar línea principal más corta
-    for (int t = 0; t < 25; t += 2) { // CAMBIADO: de 50 a 25
+    for (int t = 0; t < 25; t += 2) {
         int line_x = paddle_center_x + (dir_x * t) / 100;
         int line_y = paddle_center_y + (dir_y * t) / 100;
         
-        // Línea gruesa (3x3 píxeles por punto)
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = -1; dy <= 1; dy++) {
                 putPixel(COLOR_RED, line_x + dx, line_y + dy);
@@ -443,21 +481,18 @@ void drawAimArrow(void) {
         }
     }
     
-    // Cabeza de flecha más pequeña
     int perp_x = -dir_y;
     int perp_y = dir_x;
     
-    // Puntos de la cabeza más pequeños
-    int head1_x = tip_x - (dir_x * 8) / 100 + (perp_x * 6) / 100; // REDUCIDO
+    int head1_x = tip_x - (dir_x * 8) / 100 + (perp_x * 6) / 100;
     int head1_y = tip_y - (dir_y * 8) / 100 + (perp_y * 6) / 100;
     int head2_x = tip_x - (dir_x * 8) / 100 - (perp_x * 6) / 100;
     int head2_y = tip_y - (dir_y * 8) / 100 - (perp_y * 6) / 100;
     
-    // Dibujar líneas de la cabeza
     drawLine(tip_x, tip_y, head1_x, head1_y, COLOR_RED);
     drawLine(tip_x, tip_y, head2_x, head2_y, COLOR_RED);
 }
-// AGREGAR función auxiliar para dibujar líneas:
+
 void drawLine(int x1, int y1, int x2, int y2, uint32_t color) {
     int dx = abs(x2 - x1);
     int dy = abs(y2 - y1);

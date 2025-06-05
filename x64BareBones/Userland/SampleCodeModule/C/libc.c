@@ -36,12 +36,10 @@ void getTime(char *buffer) {
     syscall(SYS_TIME, (uint64_t)buffer, 0, 0);
 }
 
-// Obtiene los valores de los registros
 void getRegisters(uint64_t *regs) {
     syscall(SYS_REGISTERS, (uint64_t)regs, 0, 0);
 }
 
-// Genera una excepción específica
 void triggerException(int exceptionNumber) {
     syscall(SYS_EXCEPTION, (uint64_t)exceptionNumber, 0, 0);
 }
@@ -50,52 +48,35 @@ void setFontSize(uint8_t size) {
     syscall(SYS_FONT_SIZE, size, 0, 0);
 }
 
-
 int setTextColor(char* colorName) {
-    // Tabla de colores para validación
     const char* valid_colors[] = {
         "white", "red", "green", "blue", "yellow", "cyan", 
         "magenta", "orange", "purple", "pink", "gray", 
         "lightgray", "darkgray", 0
     };
     
-    // Verificar si el color existe
     for (int i = 0; valid_colors[i] != 0; i++) {
         if (strcmp(colorName, valid_colors[i]) == 0) {
-            // Llamar syscall para cambiar color (CORREGIDO el cast)
-            syscall(7, (uint64_t)colorName, 0, 0); 
-            return 1; // Éxito
+            syscall(6, (uint64_t)colorName, 0, 0); 
+            return 1;
         }
     }
     
-    return 0; // Color no encontrado
+    return 0;
 }
 
 void printAvailableColors(void) {
     print("Colores disponibles: white, red, green, blue, yellow, cyan, magenta, orange, purple, pink, gray, lightgray, darkgray\n");
 }
 
-// Agregar estas funciones a libc.c
-
-// Función para llenar toda la pantalla con un color
 void fillScreen(uint32_t color) {
     syscall(8, (uint64_t)color, 0, 0);
 }
 
-// Función para obtener tecla sin bloquear
 char getKeyNonBlocking(void) {
     char key = 0;
-    syscall(9, (uint64_t)&key, 0, 0);  // Pasar puntero al buffer
+    syscall(9, (uint64_t)&key, 0, 0);
     return key;
-}
-// Función para reproducir sonido (beep)
-void playBeep(void) {
-    syscall(10, 440, 100, 0); // 440Hz por 100ms
-}
-
-// Función para reproducir sonido de victoria
-void playWinSound(void) {
-    syscall(10, 880, 200, 0); // 880Hz por 200ms
 }
 
 // Funciones matemáticas básicas
@@ -103,7 +84,6 @@ int abs(int x) {
     return x < 0 ? -x : x;
 }
 
-// Función para raíz cuadrada entera (aproximación)
 int isqrt(int x) {
     if (x == 0) return 0;
     
@@ -126,8 +106,6 @@ int strlen(const char* str) {
     return len;
 }
 
-// Agregar estas funciones a libc.c
-
 void putPixel(uint32_t color, uint64_t x, uint64_t y) {
     syscall(11, (uint64_t)color, x, y);
 }
@@ -138,4 +116,17 @@ void drawRectangle(uint32_t color, uint16_t x1, uint16_t y1, uint16_t x2, uint16
             putPixel(color, x, y);
         }
     }
+}
+
+// SOLO LAS 3 FUNCIONES DE SONIDO NECESARIAS
+void playBeep(void) {
+    syscall(13, 0, 0, 0);
+}
+
+void playWinSound(void) {
+    syscall(14, 0, 0, 0);
+}
+
+void playSound(uint32_t frequency, uint32_t duration) {
+    syscall(10, frequency, duration, 0);
 }
