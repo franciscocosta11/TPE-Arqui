@@ -208,7 +208,28 @@ void shell() {
             }
             // COMANDO GOLF CON SONIDO DE INICIO
             else if (strcmp(command, "golf") == 0) {
-                print("Iniciando Pongis-Golf...\n");
+                clearScreen();
+                print("========================================\n");
+                print("         BIENVENIDO A PONGIS-GOLF       \n");
+                print("========================================\n");
+                print("\n");
+                print("Selecciona el modo de juego:\n");
+                print("\n");
+                print("  [1] - Un Jugador\n");
+                print("       Controles: Flechas\n");
+                print("       ← → : Rotar palo\n");
+                print("       ↑   : Mover palo\n");
+                print("\n");
+                print("  [2] - Dos Jugadores\n");
+                print("       Jugador 1: Flechas (← → ↑)\n");
+                print("       Jugador 2: WASD (A D W)\n");
+                print("       ESPACIO: Cambiar jugador\n");
+                print("\n");
+                print("  [ESC] - Volver al menu\n");
+                print("\n");
+                print("Niveles: 3 (hoyo cada vez mas pequeno)\n");
+                print("Objetivo: Meter la pelota en el hoyo\n");
+                print("\n");
                 playBeep(); // SONIDO AL INICIAR GOLF
                 startGolfGame();
                 // Cuando regrese del juego

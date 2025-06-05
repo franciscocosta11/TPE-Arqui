@@ -6,7 +6,6 @@
 #define BALL_SIZE 8
 #define PADDLE_WIDTH 15
 #define PADDLE_HEIGHT 60
-#define HOLE_SIZE 30
 #define MAX_SPEED 8
 
 // Colores
@@ -16,7 +15,19 @@
 #define COLOR_BLACK   0x000000
 #define COLOR_RED     0xFF0000
 #define COLOR_YELLOW  0xFFFF00
-#define COLOR_BLUE    0x0000FF 
+#define COLOR_BLUE    0x0000FF
+#define COLOR_CYAN    0x00FFFF
+#define COLOR_MAGENTA 0xFF00FF
+
+// Estados del juego
+#define GAME_MENU 0
+#define GAME_PLAYING 1
+#define GAME_LEVEL_COMPLETE 2
+#define GAME_OVER 3
+
+// Modos de juego
+#define MODE_SINGLE 1
+#define MODE_MULTIPLAYER 2
 
 // Estructura para la pelota
 typedef struct {
@@ -29,6 +40,8 @@ typedef struct {
 typedef struct {
     int x, y;
     int width, height;
+    uint32_t color;
+    int aim_angle;
 } Paddle;
 
 // Estructura para el hoyo
@@ -39,15 +52,20 @@ typedef struct {
 
 // Variables globales del juego
 static Ball ball;
-static Paddle paddle;
+static Paddle paddle1, paddle2;
 static Hole hole;
 static int hits = 0;
 static int gameRunning = 1;
+static int gameState = GAME_MENU;
+static int gameMode = MODE_SINGLE;
+static int currentLevel = 1;
+static int maxLevels = 3;
+static int currentPlayer = 1; // Para modo multijugador
 
-// Variables para generador de números aleatorios simple
+// Variables para generador de números aleatorios
 static unsigned int random_seed = 1;
 
-// Tablas trigonométricas simplificadas
+// Tablas trigonométricas
 static int cos_table[24] = {
     100, 97, 87, 71, 50, 26, 0, -26, -50, -71, -87, -97,
     -100, -97, -87, -71, -50, -26, 0, 26, 50, 71, 87, 97
@@ -58,9 +76,8 @@ static int sin_table[24] = {
     0, 26, 50, 71, 87, 97, 100, 97, 87, 71, 50, 26
 };
 
-static int aim_angle = 0;
-
 // Declaraciones de funciones
+void showMenu(void);
 void initGame(void);
 void drawGame(void);
 void updateGame(void);
@@ -70,38 +87,78 @@ void drawCircle(int centerX, int centerY, int radius, uint32_t color);
 void drawNumber(int number, int x, int y);
 void resetBall(void);
 void drawLine(int x1, int y1, int x2, int y2, uint32_t color);
-void drawAimArrow(void);
+void drawAimArrow(Paddle* paddle);
 void placeHoleRandomly(void);
 void showHoleMessage(void);
+void showLevelComplete(void);
+void drawUI(void);
 int simpleRandom(int min, int max);
+int getHoleSize(int level);
 
 void startGolfGame(void) {
     clearScreen();
-    print("========================================\n");
-    print("         BIENVENIDO A PONGIS-GOLF       \n");
-    print("========================================\n");
-    print("\n");
-    print("Instrucciones:\n");
-    print("- Usa las flechas para mover el palo\n");
-    print("- Golpea la pelota para que entre al hoyo\n");
-    print("- El hoyo aparece en lugares aleatorios\n");
-    print("- ESC para salir del juego\n");
-    print("\n");
-    print("Presiona ENTER para comenzar...\n");
-    
-    char key;
-    do {
-        key = getchar();
-    } while (key != '\n' && key != '\r');
-    
-    initGame();
+    gameState = GAME_MENU;
+    gameRunning = 1;
     
     while (gameRunning) {
-        handleInput();
-        updateGame();
-        drawGame();
+        switch (gameState) {
+            case GAME_MENU:
+                showMenu();
+                break;
+            case GAME_PLAYING:
+                handleInput();
+                updateGame();
+                drawGame();
+                break;
+            case GAME_LEVEL_COMPLETE:
+                showLevelComplete();
+                break;
+            case GAME_OVER:
+                gameRunning = 0;
+                break;
+        }
         
         for (volatile int i = 0; i < 50000; i++); 
+    }
+}
+
+void showMenu(void) {
+    static int menuInitialized = 0;
+    
+    if (!menuInitialized) {
+        fillScreen(COLOR_BLACK);
+        
+        // Título
+        drawRect(200, 100, 624, 80, COLOR_BLUE);
+        drawRect(210, 110, 604, 60, COLOR_WHITE);
+        
+        // Dibujar "PONGIS-GOLF" en el título
+        print("PONGIS-GOLF\n");
+        
+        // Instrucciones
+        drawRect(150, 250, 724, 200, COLOR_GREEN);
+        drawRect(160, 260, 704, 180, COLOR_WHITE);
+        
+        menuInitialized = 1;
+    }
+    
+    // Leer input del menú
+    char key = getKeyNonBlocking();
+    
+    if (key == '1') {
+        gameMode = MODE_SINGLE;
+        currentLevel = 1;
+        gameState = GAME_PLAYING;
+        playBeep();
+        initGame();
+    } else if (key == '2') {
+        gameMode = MODE_MULTIPLAYER;
+        currentLevel = 1;
+        gameState = GAME_PLAYING;
+        playBeep();
+        initGame();
+    } else if (key == 27) { // ESC
+        gameRunning = 0;
     }
 }
 
@@ -110,8 +167,18 @@ int simpleRandom(int min, int max) {
     return min + (random_seed % (max - min + 1));
 }
 
+int getHoleSize(int level) {
+    switch (level) {
+        case 1: return 30;  // Fácil
+        case 2: return 20;  // Medio
+        case 3: return 15;  // Difícil
+        default: return 15;
+    }
+}
+
 void placeHoleRandomly(void) {
-    int margin = HOLE_SIZE + 20;
+    hole.size = getHoleSize(currentLevel);
+    int margin = hole.size + 30;
     
     do {
         hole.x = simpleRandom(margin, SCREEN_WIDTH - margin);
@@ -120,7 +187,7 @@ void placeHoleRandomly(void) {
         int dx = hole.x - ball.x;
         int dy = hole.y - ball.y;
         int distance_sq = dx*dx + dy*dy;
-        int min_distance = 150;
+        int min_distance = 200;
         
         if (distance_sq > min_distance * min_distance) {
             break;
@@ -131,32 +198,45 @@ void placeHoleRandomly(void) {
 void initGame(void) {
     fillScreen(COLOR_GREEN);
     
-    random_seed = 12345;
+    random_seed = 12345 + currentLevel * 1000;
     
+    // Pelota en el centro
     ball.x = SCREEN_WIDTH / 2;
     ball.y = SCREEN_HEIGHT / 2;
     ball.vx = 0;
     ball.vy = 0;
     ball.size = BALL_SIZE;
     
-    paddle.x = 50;
-    paddle.y = SCREEN_HEIGHT / 2 - (BALL_SIZE * 3);
-    paddle.width = BALL_SIZE * 6;
-    paddle.height = BALL_SIZE * 6;
+    // Paddle 1 (Jugador 1)
+    paddle1.x = 50;
+    paddle1.y = SCREEN_HEIGHT / 2 - (BALL_SIZE * 3);
+    paddle1.width = BALL_SIZE * 6;
+    paddle1.height = BALL_SIZE * 6;
+    paddle1.color = COLOR_GRAY;
+    paddle1.aim_angle = 0;
     
-    hole.size = HOLE_SIZE;
+    // Paddle 2 (Jugador 2) - solo en modo multijugador
+    if (gameMode == MODE_MULTIPLAYER) {
+        paddle2.x = SCREEN_WIDTH - 100;
+        paddle2.y = SCREEN_HEIGHT / 2 - (BALL_SIZE * 3);
+        paddle2.width = BALL_SIZE * 6;
+        paddle2.height = BALL_SIZE * 6;
+        paddle2.color = COLOR_CYAN;
+        paddle2.aim_angle = 180; // Apuntando hacia la izquierda
+        currentPlayer = 1;
+    }
+    
     placeHoleRandomly();
     
     hits = 0;
-    gameRunning = 1;
-    aim_angle = 0;
 }
 
 void drawGame(void) {
     static int last_ball_x = -1, last_ball_y = -1;
-    static int last_paddle_x = -1, last_paddle_y = -1;
+    static int last_paddle1_x = -1, last_paddle1_y = -1;
+    static int last_paddle2_x = -1, last_paddle2_y = -1;
     static int last_hole_x = -1, last_hole_y = -1;
-    static int last_angle = -1;
+    static int last_angle1 = -1, last_angle2 = -1;
     static int initialized = 0;
     
     if (!initialized) {
@@ -164,81 +244,175 @@ void drawGame(void) {
         initialized = 1;
     }
     
+    // Limpiar posiciones anteriores
     if (last_hole_x != -1 && (last_hole_x != hole.x || last_hole_y != hole.y)) {
-        drawCircle(last_hole_x, last_hole_y, hole.size + 2, COLOR_GREEN);
+        drawCircle(last_hole_x, last_hole_y, getHoleSize(currentLevel) + 2, COLOR_GREEN);
     }
-    
-    drawCircle(hole.x, hole.y, hole.size, COLOR_BLACK);
     
     if (last_ball_x != -1 && (last_ball_x != ball.x || last_ball_y != ball.y)) {
         drawCircle(last_ball_x, last_ball_y, ball.size + 2, COLOR_GREEN);
     }
     
-    if (last_paddle_x != -1 && (last_paddle_x != paddle.x || last_paddle_y != paddle.y || last_angle != aim_angle)) {
-        int old_center_x = last_paddle_x + paddle.width/2;
-        int old_center_y = last_paddle_y + paddle.height/2;
+    if (last_paddle1_x != -1 && (last_paddle1_x != paddle1.x || last_paddle1_y != paddle1.y || last_angle1 != paddle1.aim_angle)) {
+        int old_center_x = last_paddle1_x + paddle1.width/2;
+        int old_center_y = last_paddle1_y + paddle1.height/2;
         drawRect(old_center_x - 40, old_center_y - 40, 80, 80, COLOR_GREEN);
     }
     
+    if (gameMode == MODE_MULTIPLAYER && last_paddle2_x != -1 && 
+        (last_paddle2_x != paddle2.x || last_paddle2_y != paddle2.y || last_angle2 != paddle2.aim_angle)) {
+        int old_center_x = last_paddle2_x + paddle2.width/2;
+        int old_center_y = last_paddle2_y + paddle2.height/2;
+        drawRect(old_center_x - 40, old_center_y - 40, 80, 80, COLOR_GREEN);
+    }
+    
+    // Dibujar elementos del juego
+    drawCircle(hole.x, hole.y, hole.size, COLOR_BLACK);
     drawCircle(ball.x, ball.y, ball.size, COLOR_WHITE);
     
-    int paddle_center_x = paddle.x + paddle.width/2;
-    int paddle_center_y = paddle.y + paddle.height/2;
-    drawCircle(paddle_center_x, paddle_center_y, paddle.width/2, COLOR_GRAY);
-    drawAimArrow();
+    // Dibujar paddle 1
+    int paddle1_center_x = paddle1.x + paddle1.width/2;
+    int paddle1_center_y = paddle1.y + paddle1.height/2;
+    uint32_t p1_color = (gameMode == MODE_SINGLE || currentPlayer == 1) ? paddle1.color : COLOR_GRAY;
+    drawCircle(paddle1_center_x, paddle1_center_y, paddle1.width/2, p1_color);
     
+    if (gameMode == MODE_SINGLE || currentPlayer == 1) {
+        drawAimArrow(&paddle1);
+    }
+    
+    // Dibujar paddle 2 (solo en multijugador)
+    if (gameMode == MODE_MULTIPLAYER) {
+        int paddle2_center_x = paddle2.x + paddle2.width/2;
+        int paddle2_center_y = paddle2.y + paddle2.height/2;
+        uint32_t p2_color = (currentPlayer == 2) ? paddle2.color : COLOR_GRAY;
+        drawCircle(paddle2_center_x, paddle2_center_y, paddle2.width/2, p2_color);
+        
+        if (currentPlayer == 2) {
+            drawAimArrow(&paddle2);
+        }
+    }
+    
+    drawUI();
+    
+    // Actualizar posiciones
     last_ball_x = ball.x;
     last_ball_y = ball.y;
-    last_paddle_x = paddle.x;
-    last_paddle_y = paddle.y;
+    last_paddle1_x = paddle1.x;
+    last_paddle1_y = paddle1.y;
+    last_angle1 = paddle1.aim_angle;
+    
+    if (gameMode == MODE_MULTIPLAYER) {
+        last_paddle2_x = paddle2.x;
+        last_paddle2_y = paddle2.y;
+        last_angle2 = paddle2.aim_angle;
+    }
+    
     last_hole_x = hole.x;
     last_hole_y = hole.y;
-    last_angle = aim_angle;
+}
+
+void drawUI(void) {
+    // Limpiar área de UI
+    drawRect(0, 0, SCREEN_WIDTH, 40, COLOR_YELLOW);
     
-    static int last_hits = -1;
-    if (hits != last_hits) {
-        drawRect(SCREEN_WIDTH - 150, 10, 140, 40, COLOR_YELLOW);
-        drawNumber(hits, SCREEN_WIDTH - 100, 25);
-        last_hits = hits;
+    // Mostrar nivel
+    drawRect(10, 5, 120, 30, COLOR_BLACK);
+    drawRect(15, 10, 110, 20, COLOR_WHITE);
+    drawNumber(currentLevel, 80, 15);
+    
+    // Mostrar golpes
+    drawRect(SCREEN_WIDTH - 150, 5, 140, 30, COLOR_BLACK);
+    drawRect(SCREEN_WIDTH - 145, 10, 130, 20, COLOR_WHITE);
+    drawNumber(hits, SCREEN_WIDTH - 100, 15);
+    
+    // En modo multijugador, mostrar jugador actual
+    if (gameMode == MODE_MULTIPLAYER) {
+        drawRect(SCREEN_WIDTH/2 - 60, 5, 120, 30, COLOR_BLACK);
+        drawRect(SCREEN_WIDTH/2 - 55, 10, 110, 20, COLOR_WHITE);
+        drawNumber(currentPlayer, SCREEN_WIDTH/2, 15);
     }
 }
 
 void handleInput(void) {
     char key = getKeyNonBlocking();
+    Paddle* activePaddle = (gameMode == MODE_SINGLE || currentPlayer == 1) ? &paddle1 : &paddle2;
     
     switch (key) {
         case 27: // ESC
-            gameRunning = 0;
-            break;
+            gameState = GAME_MENU;
+            return;
             
+        // Controles Jugador 1 (Flechas)
         case 75: // Flecha IZQUIERDA
-            aim_angle = (aim_angle - 15 + 360) % 360;
+            if (gameMode == MODE_SINGLE || currentPlayer == 1) {
+                paddle1.aim_angle = (paddle1.aim_angle - 15 + 360) % 360;
+            }
             break;
             
         case 77: // Flecha DERECHA
-            aim_angle = (aim_angle + 15) % 360;
+            if (gameMode == MODE_SINGLE || currentPlayer == 1) {
+                paddle1.aim_angle = (paddle1.aim_angle + 15) % 360;
+            }
             break;
             
         case 72: // Flecha ARRIBA
-            {
-                int angle_x = cos_table[aim_angle / 15];
-                int angle_y = sin_table[aim_angle / 15];
+            if (gameMode == MODE_SINGLE || currentPlayer == 1) {
+                int angle_x = cos_table[paddle1.aim_angle / 15];
+                int angle_y = sin_table[paddle1.aim_angle / 15];
                 
-                int new_x = paddle.x + (angle_x * 8) / 100;
-                int new_y = paddle.y + (angle_y * 8) / 100;
+                int new_x = paddle1.x + (angle_x * 8) / 100;
+                int new_y = paddle1.y + (angle_y * 8) / 100;
                 
-                if (new_x >= 0 && new_x + paddle.width <= SCREEN_WIDTH &&
-                    new_y >= 0 && new_y + paddle.height <= SCREEN_HEIGHT) {
-                    paddle.x = new_x;
-                    paddle.y = new_y;
+                if (new_x >= 0 && new_x + paddle1.width <= SCREEN_WIDTH &&
+                    new_y >= 0 && new_y + paddle1.height <= SCREEN_HEIGHT) {
+                    paddle1.x = new_x;
+                    paddle1.y = new_y;
                 }
+            }
+            break;
+            
+        // Controles Jugador 2 (WASD) - solo en multijugador
+        case 'a': case 'A': // A - rotar izquierda
+            if (gameMode == MODE_MULTIPLAYER && currentPlayer == 2) {
+                paddle2.aim_angle = (paddle2.aim_angle - 15 + 360) % 360;
+            }
+            break;
+            
+        case 'd': case 'D': // D - rotar derecha
+            if (gameMode == MODE_MULTIPLAYER && currentPlayer == 2) {
+                paddle2.aim_angle = (paddle2.aim_angle + 15) % 360;
+            }
+            break;
+            
+        case 'w': case 'W': // W - mover hacia donde apunta
+            if (gameMode == MODE_MULTIPLAYER && currentPlayer == 2) {
+                int angle_x = cos_table[paddle2.aim_angle / 15];
+                int angle_y = sin_table[paddle2.aim_angle / 15];
+                
+                int new_x = paddle2.x + (angle_x * 8) / 100;
+                int new_y = paddle2.y + (angle_y * 8) / 100;
+                
+                if (new_x >= 0 && new_x + paddle2.width <= SCREEN_WIDTH &&
+                    new_y >= 0 && new_y + paddle2.height <= SCREEN_HEIGHT) {
+                    paddle2.x = new_x;
+                    paddle2.y = new_y;
+                }
+            }
+            break;
+            
+        // Cambiar de jugador en multijugador (Barra espaciadora)
+        case ' ':
+            if (gameMode == MODE_MULTIPLAYER) {
+                currentPlayer = (currentPlayer == 1) ? 2 : 1;
+                playBeep();
             }
             break;
     }
 }
 
 void updateGame(void) {
-    static int last_paddle_x = -1, last_paddle_y = -1;
+    static int last_paddle1_x = -1, last_paddle1_y = -1;
+    static int last_paddle2_x = -1, last_paddle2_y = -1;
     static int collision_cooldown = 0;
     static int was_far = 1;
     
@@ -246,57 +420,108 @@ void updateGame(void) {
         collision_cooldown--;
     }
     
-    int paddle_center_x = paddle.x + paddle.width/2;
-    int paddle_center_y = paddle.y + paddle.height/2;
-    int dx_collision = ball.x - paddle_center_x;
-    int dy_collision = ball.y - paddle_center_y;
-    int collision_distance_sq = dx_collision*dx_collision + dy_collision*dy_collision;
-    int collision_radius = (ball.size + paddle.width/2 - 8);
+    // Comprobar colisión con paddle 1
+    int paddle1_center_x = paddle1.x + paddle1.width/2;
+    int paddle1_center_y = paddle1.y + paddle1.height/2;
+    int dx1 = ball.x - paddle1_center_x;
+    int dy1 = ball.y - paddle1_center_y;
+    int distance1_sq = dx1*dx1 + dy1*dy1;
+    int collision_radius = (ball.size + paddle1.width/2 - 8);
+    
+    // Comprobar colisión con paddle 2 (si existe)
+    int distance2_sq = 999999;
+    int dx2 = 0, dy2 = 0;
+    if (gameMode == MODE_MULTIPLAYER) {
+        int paddle2_center_x = paddle2.x + paddle2.width/2;
+        int paddle2_center_y = paddle2.y + paddle2.height/2;
+        dx2 = ball.x - paddle2_center_x;
+        dy2 = ball.y - paddle2_center_y;
+        distance2_sq = dx2*dx2 + dy2*dy2;
+    }
     
     int far_distance = (collision_radius + 25) * (collision_radius + 25);
-    if (collision_distance_sq > far_distance) {
+    if (distance1_sq > far_distance && distance2_sq > far_distance) {
         was_far = 1;
     }
     
-    int paddle_speed = 0;
-    if (last_paddle_x != -1) {
-        int paddle_dx = paddle.x - last_paddle_x;
-        int paddle_dy = paddle.y - last_paddle_y;
-        paddle_speed = isqrt(paddle_dx*paddle_dx + paddle_dy*paddle_dy);
+    // Calcular velocidades de paddles
+    int paddle1_speed = 0, paddle2_speed = 0;
+    if (last_paddle1_x != -1) {
+        int dx = paddle1.x - last_paddle1_x;
+        int dy = paddle1.y - last_paddle1_y;
+        paddle1_speed = isqrt(dx*dx + dy*dy);
+    }
+    if (gameMode == MODE_MULTIPLAYER && last_paddle2_x != -1) {
+        int dx = paddle2.x - last_paddle2_x;
+        int dy = paddle2.y - last_paddle2_y;
+        paddle2_speed = isqrt(dx*dx + dy*dy);
     }
     
-    if (collision_distance_sq < (collision_radius * collision_radius) && 
-        collision_cooldown == 0 &&
-        was_far == 1 &&
-        paddle_speed > 0) {
+    // Verificar colisión con paddle 1
+    if (distance1_sq < (collision_radius * collision_radius) && 
+        collision_cooldown == 0 && was_far == 1 && paddle1_speed > 0) {
         
-        int dist = isqrt(collision_distance_sq);
+        int dist = isqrt(distance1_sq);
         if (dist > 1) {
             int base_impact = 150;
-            int speed_multiplier = paddle_speed * 80;
+            int speed_multiplier = paddle1_speed * 80;
             int final_speed = base_impact + speed_multiplier;
             
             if (final_speed < 150) final_speed = 150;
             if (final_speed > 1200) final_speed = 1200;
             
-            ball.vx = (dx_collision * final_speed) / dist;
-            ball.vy = (dy_collision * final_speed) / dist;
+            ball.vx = (dx1 * final_speed) / dist;
+            ball.vy = (dy1 * final_speed) / dist;
             
             hits++;
-            // SIN SONIDO AL GOLPEAR - solo incrementar hits
             
             int separation = collision_radius + 15;
-            ball.x = paddle_center_x + (dx_collision * separation) / dist;
-            ball.y = paddle_center_y + (dy_collision * separation) / dist;
+            ball.x = paddle1_center_x + (dx1 * separation) / dist;
+            ball.y = paddle1_center_y + (dy1 * separation) / dist;
             
             collision_cooldown = 30;
             was_far = 0;
         }
     }
     
-    last_paddle_x = paddle.x;
-    last_paddle_y = paddle.y;
+    // Verificar colisión con paddle 2 (modo multijugador)
+    if (gameMode == MODE_MULTIPLAYER && 
+        distance2_sq < (collision_radius * collision_radius) && 
+        collision_cooldown == 0 && was_far == 1 && paddle2_speed > 0) {
+        
+        int dist = isqrt(distance2_sq);
+        if (dist > 1) {
+            int base_impact = 150;
+            int speed_multiplier = paddle2_speed * 80;
+            int final_speed = base_impact + speed_multiplier;
+            
+            if (final_speed < 150) final_speed = 150;
+            if (final_speed > 1200) final_speed = 1200;
+            
+            ball.vx = (dx2 * final_speed) / dist;
+            ball.vy = (dy2 * final_speed) / dist;
+            
+            hits++;
+            
+            int paddle2_center_x = paddle2.x + paddle2.width/2;
+            int paddle2_center_y = paddle2.y + paddle2.height/2;
+            int separation = collision_radius + 15;
+            ball.x = paddle2_center_x + (dx2 * separation) / dist;
+            ball.y = paddle2_center_y + (dy2 * separation) / dist;
+            
+            collision_cooldown = 30;
+            was_far = 0;
+        }
+    }
     
+    last_paddle1_x = paddle1.x;
+    last_paddle1_y = paddle1.y;
+    if (gameMode == MODE_MULTIPLAYER) {
+        last_paddle2_x = paddle2.x;
+        last_paddle2_y = paddle2.y;
+    }
+    
+    // Física de la pelota
     ball.x += ball.vx / 100;
     ball.y += ball.vy / 100;
     
@@ -308,6 +533,7 @@ void updateGame(void) {
         ball.vy = 0;
     }
     
+    // Rebotes en paredes
     if (ball.x - ball.size <= 0) {
         ball.x = ball.size;
         ball.vx = -ball.vx * 80 / 100;
@@ -316,8 +542,8 @@ void updateGame(void) {
         ball.x = SCREEN_WIDTH - ball.size;
         ball.vx = -ball.vx * 80 / 100;
     }
-    if (ball.y - ball.size <= 0) {
-        ball.y = ball.size;
+    if (ball.y - ball.size <= 40) { // Dejar espacio para UI
+        ball.y = 40 + ball.size;
         ball.vy = -ball.vy * 80 / 100;
     }
     if (ball.y + ball.size >= SCREEN_HEIGHT) {
@@ -325,23 +551,24 @@ void updateGame(void) {
         ball.vy = -ball.vy * 80 / 100;
     }
     
-    // VERIFICAR GOL
+    // Verificar si la pelota entró en el hoyo
     int dx = ball.x - hole.x;
     int dy = ball.y - hole.y;
     int distance_sq = dx*dx + dy*dy;
     int min_distance_sq = (hole.size - ball.size) * (hole.size - ball.size);
     
     if (distance_sq < min_distance_sq) {
-        // ¡HOYO! - ÚNICO SONIDO EN EL JUEGO
-        showHoleMessage();
-        resetBall();
-        placeHoleRandomly();
-        hits = 0;
+        if (currentLevel < maxLevels) {
+            currentLevel++;
+            gameState = GAME_LEVEL_COMPLETE;
+        } else {
+            showHoleMessage();
+            gameState = GAME_MENU;
+        }
     }
 }
 
-void showHoleMessage(void) {
-    // SONIDO DE VICTORIA AL ANOTAR
+void showLevelComplete(void) {
     playWinSound();
     
     fillScreen(COLOR_YELLOW);
@@ -349,38 +576,34 @@ void showHoleMessage(void) {
     drawRect(200, 300, 600, 150, COLOR_BLUE);
     drawRect(210, 310, 580, 130, COLOR_WHITE);
     
-    int start_x = 300;
+    // Mostrar "NIVEL COMPLETO"
+    drawRect(300, 350, 400, 50, COLOR_BLACK);
+    
+    // Mostrar número de golpes
+    drawNumber(hits, 450, 280);
+    
+    for (volatile int i = 0; i < 10000000; i++);
+    
+    // Inicializar siguiente nivel
+    resetBall();
+    placeHoleRandomly();
+    hits = 0;
+    gameState = GAME_PLAYING;
+    fillScreen(COLOR_GREEN);
+}
+
+void showHoleMessage(void) {
+    playWinSound();
+    
+    fillScreen(COLOR_YELLOW);
+    
+    drawRect(200, 300, 600, 150, COLOR_BLUE);
+    drawRect(210, 310, 580, 130, COLOR_WHITE);
+    
+    // Dibujar "¡COMPLETADO!"
+    int start_x = 250;
     int start_y = 350;
-    
-    // H
-    drawRect(start_x, start_y, 10, 50, COLOR_BLACK);
-    drawRect(start_x + 20, start_y, 10, 50, COLOR_BLACK);
-    drawRect(start_x, start_y + 20, 30, 10, COLOR_BLACK);
-    
-    // O
-    start_x += 50;
-    drawRect(start_x, start_y, 30, 10, COLOR_BLACK);
-    drawRect(start_x, start_y + 40, 30, 10, COLOR_BLACK);
-    drawRect(start_x, start_y, 10, 50, COLOR_BLACK);
-    drawRect(start_x + 20, start_y, 10, 50, COLOR_BLACK);
-    
-    // Y
-    start_x += 50;
-    drawRect(start_x, start_y, 10, 25, COLOR_BLACK);
-    drawRect(start_x + 20, start_y, 10, 25, COLOR_BLACK);
-    drawRect(start_x + 10, start_y + 20, 10, 30, COLOR_BLACK);
-    
-    // O
-    start_x += 50;
-    drawRect(start_x, start_y, 30, 10, COLOR_BLACK);
-    drawRect(start_x, start_y + 40, 30, 10, COLOR_BLACK);
-    drawRect(start_x, start_y, 10, 50, COLOR_BLACK);
-    drawRect(start_x + 20, start_y, 10, 50, COLOR_BLACK);
-    
-    // !
-    start_x += 50;
-    drawRect(start_x + 10, start_y, 10, 35, COLOR_BLACK);
-    drawRect(start_x + 10, start_y + 40, 10, 10, COLOR_BLACK);
+    drawRect(start_x, start_y, 500, 50, COLOR_BLACK);
     
     drawNumber(hits, 450, 280);
     
@@ -459,11 +682,11 @@ void drawNumber(int number, int x, int y) {
     }
 }
 
-void drawAimArrow(void) {
-    int paddle_center_x = paddle.x + paddle.width/2;
-    int paddle_center_y = paddle.y + paddle.height/2;
+void drawAimArrow(Paddle* paddle) {
+    int paddle_center_x = paddle->x + paddle->width/2;
+    int paddle_center_y = paddle->y + paddle->height/2;
     
-    int angle_index = aim_angle / 15;
+    int angle_index = paddle->aim_angle / 15;
     int dir_x = cos_table[angle_index];
     int dir_y = sin_table[angle_index];
     
