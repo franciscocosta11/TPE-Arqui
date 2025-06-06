@@ -1,54 +1,5 @@
 #include "./../include/libc.h"
-
-// Constantes del juego
-#define SCREEN_WIDTH 1024
-#define SCREEN_HEIGHT 768
-#define BALL_SIZE 8
-#define PADDLE_WIDTH 15
-#define PADDLE_HEIGHT 60
-#define MAX_SPEED 8
-
-// Colores
-#define COLOR_GREEN   0x00AA00
-#define COLOR_WHITE   0xFFFFFF
-#define COLOR_GRAY    0x808080
-#define COLOR_BLACK   0x000000
-#define COLOR_RED     0xFF0000
-#define COLOR_YELLOW  0xFFFF00
-#define COLOR_BLUE    0x0000FF
-#define COLOR_CYAN    0x00FFFF
-#define COLOR_MAGENTA 0xFF00FF
-
-// Estados del juego
-#define GAME_MENU 0
-#define GAME_PLAYING 1
-#define GAME_LEVEL_COMPLETE 2
-#define GAME_OVER 3
-
-// Modos de juego
-#define MODE_SINGLE 1
-#define MODE_MULTIPLAYER 2
-
-// Estructura para la pelota
-typedef struct {
-    int x, y;      
-    int vx, vy;    
-    int size;
-} Ball;
-
-// Estructura para el palo
-typedef struct {
-    int x, y;
-    int width, height;
-    uint32_t color;
-    int aim_angle;
-} Paddle;
-
-// Estructura para el hoyo
-typedef struct {
-    int x, y;
-    int size;
-} Hole;
+#include "./../include/golf.h"
 
 // Variables globales del juego
 static Ball ball;
@@ -75,25 +26,6 @@ static int sin_table[24] = {
     0, -26, -50, -71, -87, -97, -100, -97, -87, -71, -50, -26,
     0, 26, 50, 71, 87, 97, 100, 97, 87, 71, 50, 26
 };
-
-// Declaraciones de funciones
-void showMenu(void);
-void initGame(void);
-void drawGame(void);
-void updateGame(void);
-void handleInput(void);
-void drawRect(int x, int y, int width, int height, uint32_t color);
-void drawCircle(int centerX, int centerY, int radius, uint32_t color);
-void drawNumber(int number, int x, int y);
-void resetBall(void);
-void drawLine(int x1, int y1, int x2, int y2, uint32_t color);
-void drawAimArrow(Paddle* paddle);
-void placeHoleRandomly(void);
-void showHoleMessage(void);
-void showLevelComplete(void);
-void drawUI(void);
-int simpleRandom(int min, int max);
-int getHoleSize(int level);
 
 void startGolfGame(void) {
     clearScreen();
@@ -128,16 +60,14 @@ void showMenu(void) {
     if (!menuInitialized) {
         fillScreen(COLOR_BLACK);
         
-        // Título
-        drawRect(200, 100, 624, 80, COLOR_BLUE);
-        drawRect(210, 110, 604, 60, COLOR_WHITE);
+       
         
         // Dibujar "PONGIS-GOLF" en el título
         print("PONGIS-GOLF\n");
-        
+        char username[] = "Negrito";
         // Instrucciones
-        drawRect(150, 250, 724, 200, COLOR_GREEN);
-        drawRect(160, 260, 704, 180, COLOR_WHITE);
+        printf("Bienvenido al pongis golf de los pibes %s", username);
+        print("Para jugar de a un jugador, presione 1. Para jugar de a dos jugadores, presione 2\n");
         
         menuInitialized = 1;
     }

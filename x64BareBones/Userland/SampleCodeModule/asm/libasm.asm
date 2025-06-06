@@ -1,4 +1,5 @@
 GLOBAL syscall
+GLOBAL triggerInvalidOpcode
 
 section .text
 
@@ -19,3 +20,7 @@ syscall:
     mov rsp, rbp
     pop rbp
     ret
+
+triggerInvalidOpcode:
+    ud2             ; Ejecutar instrucción inválida
+    ret             ;

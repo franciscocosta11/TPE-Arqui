@@ -62,7 +62,6 @@ static void print_hex(uint64_t value) {
     vdPrint(buffer);
 }
 
-// Función simplificada para imprimir registros
 static void print_registers(registers_t *r) {
     // Lista de nombres de registros y sus valores correspondientes
     const char *reg_names[] = {
@@ -89,13 +88,25 @@ static void print_registers(registers_t *r) {
 
 // Handler para división por cero
 static void zero_division(registers_t *regs) {
+    // Guardar color actual y cambiar a rojo
+    vdSetColor(0xFF0000); // Rojo
+    
     vdPrint("[EXCEPTION] Division by zero\n\n");
     print_registers(regs);
     vdPrint("\n Returning to shell...\n\n");
+    
+    // Restaurar color por defecto (blanco)
+    vdSetColor(0xFFFFFF);
 }
 
 static void invalid_opcode(registers_t *regs) {
+    // Guardar color actual y cambiar a rojo
+    vdSetColor(0xFF0000); // Rojo
+    
     vdPrint("[EXCEPTION] Invalid opcode\n\n");
     print_registers(regs);
     vdPrint("\n Returning to shell...\n\n");
+    
+    // Restaurar color por defecto (blanco)
+    vdSetColor(0xFFFFFF);
 }

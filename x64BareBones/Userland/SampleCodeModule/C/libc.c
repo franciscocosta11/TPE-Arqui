@@ -130,3 +130,211 @@ void playWinSound(void) {
 void playSound(uint32_t frequency, uint32_t duration) {
     syscall(10, frequency, duration, 0);
 }
+
+static void itoa(int num, char *str) {
+    int i = 0;
+    int isNegative = 0;
+    
+    if (num == 0) {
+        str[0] = '0';
+        str[1] = '\0';
+        return;
+    }
+    
+    if (num < 0) {
+        isNegative = 1;
+        num = -num;
+    }
+    
+    while (num != 0) {
+        str[i++] = (num % 10) + '0';
+        num = num / 10;
+    }
+    
+    if (isNegative) {
+        str[i++] = '-';
+    }
+    
+    str[i] = '\0';
+    
+    // Invertir string
+    int start = 0;
+    int end = i - 1;
+    while (start < end) {
+        char temp = str[start];
+        str[start] = str[end];
+        str[end] = temp;
+        start++;
+        end--;
+    }
+}
+
+// Función auxiliar para convertir string a entero
+static int atoi(const char *str) {
+    int result = 0;
+    int sign = 1;
+    int i = 0;
+    
+    // Manejar signo negativo
+    if (str[0] == '-') {
+        sign = -1;
+        i = 1;
+    }
+    
+    while (str[i] >= '0' && str[i] <= '9') {
+        result = result * 10 + (str[i] - '0');
+        i++;
+    }
+    
+    return result * sign;
+}
+
+int printf(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    
+    int chars_printed = 0;
+    char buffer[32];
+    
+    for (int i = 0; format[i] != '\0'; i++) {
+        if (format[i] == '%' && format[i + 1] != '\0') {
+            i++; // Saltar el '%'
+            
+            switch (format[i]) {
+                case 'd': {
+                    int value = va_arg(args, int);
+                    itoa(value, buffer);
+                    print(buffer);
+                    chars_printed += strlen(buffer);
+                    break;
+                }
+                case 's': {
+                    char *str = va_arg(args, char*);
+                    if (str) {
+                        print(str);
+                        chars_printed += strlen(str);
+                    }
+                    break;
+                }
+                case 'c': {
+                    char c = (char)va_arg(args, int);
+                    putchar(c);
+                    chars_printed++;
+                    break;
+                }
+                case '%':
+                    putchar('%');
+                    chars_printed++;
+                    break;
+                default:
+                    putchar('%');
+                    putchar(format[i]);
+                    chars_printed += 2;
+                    break;
+            }
+        } else {
+            putchar(format[i]);
+            chars_printed++;
+        }
+    }
+    
+    va_end(args);
+    return chars_printed;
+}
+
+int scanf(const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    
+    char input_buffer[256];
+    int buffer_index = 0;
+    int items_read = 0;
+    
+    // Leer línea completa de entrada
+    char c;
+    while ((c = getchar()) != '\n' && c != '\0' && buffer_index < 255) {
+        if (c == '\b') { // Backspace
+            if (buffer_index > 0) {
+                buffer_index--;
+                print("\b \b"); // Borrar carácter visualmente
+            }
+        } else {
+            input_buffer[buffer_index++] = c;
+            putchar(c); // Echo del carácter
+        }
+    }
+    input_buffer[buffer_index] = '\0';
+    putchar('\n'); // Nueva línea después de Enter
+    
+    // Procesar formato
+    int input_pos = 0;
+    for (int i = 0; format[i] != '\0'; i++) {
+        if (format[i] == '%' && format[i + 1] != '\0') {
+            i++; // Saltar el '%'
+            
+            // Saltar espacios en blanco en input
+            while (input_pos < buffer_index && 
+                   (input_buffer[input_pos] == ' ' || input_buffer[input_pos] == '\t')) {
+                input_pos++;
+            }
+            
+            switch (format[i]) {
+                case 'd': {
+                    int *ptr = va_arg(args, int*);
+                    char num_str[32];
+                    int num_index = 0;
+                    
+                    // Leer dígitos (y signo negativo)
+                    if (input_buffer[input_pos] == '-') {
+                        num_str[num_index++] = input_buffer[input_pos++];
+                    }
+                    
+                    while (input_pos < buffer_index && 
+                           input_buffer[input_pos] >= '0' && 
+                           input_buffer[input_pos] <= '9') {
+                        num_str[num_index++] = input_buffer[input_pos++];
+                    }
+                    
+                    if (num_index > 0) {
+                        num_str[num_index] = '\0';
+                        *ptr = atoi(num_str);
+                        items_read++;
+                    }
+                    break;
+                }
+                case 's': {
+                    char *str = va_arg(args, char*);
+                    int str_index = 0;
+                    
+                    // Leer hasta espacio o final
+                    while (input_pos < buffer_index && 
+                           input_buffer[input_pos] != ' ' && 
+                           input_buffer[input_pos] != '\t') {
+                        str[str_index++] = input_buffer[input_pos++];
+                    }
+                    
+                    if (str_index > 0) {
+                        str[str_index] = '\0';
+                        items_read++;
+                    }
+                    break;
+                }
+                case 'c': {
+                    char *ptr = va_arg(args, char*);
+                    if (input_pos < buffer_index) {
+                        *ptr = input_buffer[input_pos++];
+                        items_read++;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    
+    va_end(args);
+    return items_read;
+}
+
+void soundOff(void) {
+    syscall(15, 0, 0, 0);
+}

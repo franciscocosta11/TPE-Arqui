@@ -1,5 +1,5 @@
 #include "./../include/libc.h"
-#define USER_LENGTH 19
+#define USER_LENGTH 19 // longitud de cadena "mark_zuckerberg", aka el usuario por defecto
 #define CMD_MAX 64
 #define USERNAME_MAX 32
 static uint8_t currentFontSize = 1;
@@ -10,16 +10,14 @@ static char username[USERNAME_MAX] = "mark_zuckerberg";
 // Declaración del juego
 void startGolfGame(void);
 
+extern void triggerInvalidOpcode(void);
+
 // Funciones inline para provocar excepciones
 static void triggerDivisionByZero(void) {
     volatile int a = 1;
     volatile int b = 0;
     volatile int result = a / b;
     (void)result;
-}
-
-static void triggerInvalidOpcode(void) {
-    __asm__ volatile("ud2");
 }
 
 // Función para imprimir el prompt con el usuario actual
@@ -162,7 +160,7 @@ void shell() {
             else if (strcmp(command, "font") == 0) {
                 currentFontSize = (currentFontSize % 3) + 1;
                 clearScreen();
-                setFontSize(currentFontSize);
+                syscall(5, currentFontSize, 0, 0);  // Cambiar setFontSize() por syscall directo
                 print("Tamanio de fuente cambiado a ");
                 if (currentFontSize == 1) print("pequenio");
                 else if (currentFontSize == 2) print("mediano");
