@@ -141,7 +141,7 @@ uint64_t vdPrintCharStyled(char character, uint32_t color, uint32_t bgColor) {
         return 0;
     }
     
-    if (cursorX + (fontWidth * currentFontSize) >= SCREEN_WIDTH_PIXELS) { // me pase de el ancho maximo
+    if (cursorX + (fontWidth * currentFontSize) >= VBE_mode_info->width) { // me pase de el ancho maximo
         vdNewline(); 
     }
     
@@ -184,13 +184,13 @@ void vdNewline() {
     cursorX = 0;
     cursorY += HEIGHT_S * currentFontSize;
     
-    if (cursorY + (HEIGHT_S * currentFontSize) >= SCREEN_HEIGHT_PIXELS) {
+    if (cursorY + (HEIGHT_S * currentFontSize) >= VBE_mode_info->height) {
         // Hacer scroll
         uint16_t lineHeight = HEIGHT_S * currentFontSize;
         
         // Copiar todas las lineas una posición hacia arriba
-        for (uint16_t y = lineHeight; y < SCREEN_HEIGHT_PIXELS; y++) {
-            for (uint16_t x = 0; x < SCREEN_WIDTH_PIXELS; x++) {
+        for (uint16_t y = lineHeight; y < VBE_mode_info->height; y++) {
+            for (uint16_t x = 0; x < VBE_mode_info->width; x++) {
                 // Leer pixel de la línea actual
                 uint8_t * framebuffer = (uint8_t *)(uint64_t)VBE_mode_info->framebuffer;
                 uint64_t offset = (x * 3) + (y * VBE_mode_info->pitch);
@@ -205,16 +205,16 @@ void vdNewline() {
         }
         
         // Limpiar la última línea
-        drawRectangle(defaultBgColor, 0, SCREEN_HEIGHT_PIXELS - lineHeight, 
-                     SCREEN_WIDTH_PIXELS, SCREEN_HEIGHT_PIXELS);
+        drawRectangle(defaultBgColor, 0, VBE_mode_info->height - lineHeight, 
+                     VBE_mode_info->width, VBE_mode_info->height);
         
         // Ajustar cursor a la última línea
-        cursorY = SCREEN_HEIGHT_PIXELS - lineHeight;
+        cursorY = VBE_mode_info->height - lineHeight;
     }
 }
 
 void vdClear() {
-    drawRectangle(defaultBgColor, 0, 0, SCREEN_WIDTH_PIXELS, SCREEN_HEIGHT_PIXELS);
+    drawRectangle(defaultBgColor, 0, 0, VBE_mode_info->width, VBE_mode_info->height);
     cursorX = 0;
     cursorY = 0;
 }
@@ -254,8 +254,8 @@ void vdSetColor(uint32_t fgColor) {
 
 // Función para llenar toda la pantalla con un color
 void vdFillScreen(uint32_t color) {
-    for (uint16_t y = 0; y < SCREEN_HEIGHT_PIXELS; y++) {
-        for (uint16_t x = 0; x < SCREEN_WIDTH_PIXELS; x++) {
+    for (uint16_t y = 0; y < VBE_mode_info->height; y++) {
+        for (uint16_t x = 0; x < VBE_mode_info->width; x++) {
             putPixel(color, x, y);
         }
     }
