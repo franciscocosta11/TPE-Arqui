@@ -251,7 +251,6 @@ uint16_t vdGetScreenWidth(void) {
     return VBE_mode_info->width;
 }
 
-
 uint16_t vdGetScreenHeight(void) {
     return VBE_mode_info->height;
 }

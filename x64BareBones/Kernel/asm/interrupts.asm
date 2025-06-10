@@ -110,7 +110,46 @@ _irq01Handler:
     iretq
 
 _syscallHandler:
-    pushState
+    ; Guardar todos los registros EXCEPTO rax
+    push rbx
+    push rcx
+    push rdx
+    push rbp
+    push rdi
+    push rsi
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+    
+    ; Llamar al dispatcher
+    ; rax = syscall number (ya está en su lugar)
+    ; rsi = param 1 (ya está en su lugar)  
+    ; rdx = param 2 (ya está en su lugar)
+    ; rcx = param 3 (ya está en su lugar)
     call syscallDispatcher
-    popState
+    
+    ; ¡IMPORTANTE! rax ahora contiene el valor de retorno - NO tocarlo
+    
+    ; Restaurar todos los registros EXCEPTO rax
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rsi
+    pop rdi
+    pop rbp
+    pop rdx
+    pop rcx
+    pop rbx
+    
+    ; rax se preserva automáticamente con el valor de retorno
     iretq

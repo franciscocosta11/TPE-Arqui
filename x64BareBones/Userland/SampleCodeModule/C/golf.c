@@ -137,19 +137,19 @@ int getHoleSize(int level) {
 
 void placeHoleRandomly(void) {
     hole.size = getHoleSize(currentLevel);
-    int margin = hole.size + 50; // Más margen
+    int margin = hole.size + 50;
     
     do {
         hole.x = simpleRandom(margin, SCREEN_WIDTH - margin);
-        hole.y = simpleRandom(margin + 45, SCREEN_HEIGHT - margin); // Evitar recuadros flotantes
+        hole.y = simpleRandom(margin + 45, SCREEN_HEIGHT - margin);
         
         // Verificar distancia mínima de la pelota
         int dx = hole.x - ball.x;
         int dy = hole.y - ball.y;
         int distance_sq = dx*dx + dy*dy;
-        int min_distance = 250; // Distancia mínima aumentada
+        int min_distance = 250;
         
-        // También verificar que no esté muy cerca de los paddles
+        // Verificar distancia de los paddles (proporcional a pantalla)
         int dx1 = hole.x - (paddle1.x + paddle1.width/2);
         int dy1 = hole.y - (paddle1.y + paddle1.height/2);
         int dist1_sq = dx1*dx1 + dy1*dy1;
@@ -161,10 +161,14 @@ void placeHoleRandomly(void) {
             dist2_sq = dx2*dx2 + dy2*dy2;
         }
         
-        // Verificar que no esté debajo de los recuadros de UI (ajustado para nuevos tamaños)
+        // Verificar conflictos con UI (proporcional a pantalla)
         int ui_conflict = 0;
-        if (hole.y < 50) { // Área de recuadros flotantes
-            if ((hole.x < 170) || (hole.x > SCREEN_WIDTH - 210)) { // Áreas de los recuadros más grandes
+        if (hole.y < 50) { // Área de UI
+            // Calcular áreas de UI proporcionales
+            int left_ui_width = SCREEN_WIDTH / 6;   // ~17% para UI izquierda
+            int right_ui_width = SCREEN_WIDTH / 4;  // ~25% para UI derecha
+            
+            if ((hole.x < left_ui_width) || (hole.x > SCREEN_WIDTH - right_ui_width)) {
                 ui_conflict = 1;
             }
         }
@@ -177,18 +181,26 @@ void placeHoleRandomly(void) {
 }
 
 void initGame(void) {
+    printf("=== DEBUG SCREEN DIMENSIONS ===\n");
+    
+    // Obtener y mostrar valores
+    SCREEN_WIDTH = getScreenWidth();
+    SCREEN_HEIGHT = getScreenHeight();
+    
     fillScreen(COLOR_GREEN);
     
     // Semilla más variada
     random_seed = 12345 + currentLevel * 1000 + hits * 100;
     
+    // Pelota en el centro (usando dimensiones dinámicas)
     ball.x = SCREEN_WIDTH / 2;
     ball.y = SCREEN_HEIGHT / 2;
     ball.vx = 0;
     ball.vy = 0;
     ball.size = BALL_SIZE;
     
-    paddle1.x = 50;
+    // Paddle 1 - posicionado proporcionalmente
+    paddle1.x = SCREEN_WIDTH / 20;  // 5% del ancho desde el borde izquierdo
     paddle1.y = SCREEN_HEIGHT / 2 - (BALL_SIZE * 3);
     if (paddle1.y < 45) paddle1.y = 45; // Asegurar que no esté en la UI
     paddle1.width = BALL_SIZE * 6;
@@ -196,8 +208,9 @@ void initGame(void) {
     paddle1.color = COLOR_BLUE;
     paddle1.aim_angle = 0;
     
+    // Paddle 2 - posicionado proporcionalmente desde el borde derecho
     if (gameMode == MODE_MULTIPLAYER) {
-        paddle2.x = SCREEN_WIDTH - 100;
+        paddle2.x = SCREEN_WIDTH - (SCREEN_WIDTH / 10);  // 10% del ancho desde el borde derecho
         paddle2.y = SCREEN_HEIGHT / 2 - (BALL_SIZE * 3);
         if (paddle2.y < 45) paddle2.y = 45; // Asegurar que no esté en la UI
         paddle2.width = BALL_SIZE * 6;
@@ -206,6 +219,7 @@ void initGame(void) {
         paddle2.aim_angle = 180;
     }
     
+    // Colocar hoyo usando dimensiones dinámicas
     placeHoleRandomly();
     
     hits = 0;
@@ -298,23 +312,26 @@ void drawGame(void) {
 
 // UI sin fondo amarillo - solo recuadros flotantes
 void drawUI(void) {
-    // NO dibujar fondo amarillo - dejar transparente
+    // Calcular posiciones proporcionales a la pantalla
+    int left_box_width = SCREEN_WIDTH / 8;      // ~12.5% del ancho
+    int right_box_width = SCREEN_WIDTH / 5;     // ~20% del ancho
     
-    // Caja del nivel (izquierda) - flotante y ajustada al nuevo texto
-    drawRect(10, 5, 150, 35, COLOR_BLACK);
-    drawRect(12, 7, 146, 31, COLOR_WHITE);
+    // Caja del nivel (izquierda) - proporcional
+    drawRect(10, 5, left_box_width, 35, COLOR_BLACK);
+    drawRect(12, 7, left_box_width - 4, 31, COLOR_WHITE);
     
-    // Dibujar "Nivel: X" - texto y número en la misma línea
+    // Texto "NIVEL:" ajustado al tamaño de caja
     drawSimpleText("NIVEL: ", 18, 15);
-    drawNumber(currentLevel, 95, 15); // Ajustado para el nuevo espaciado
+    drawNumber(currentLevel, 18 + 77, 15); // Posición relativa al texto
     
-    // Caja de golpes (derecha) - flotante y ajustada al nuevo texto
-    drawRect(SCREEN_WIDTH - 200, 5, 190, 35, COLOR_BLACK);
-    drawRect(SCREEN_WIDTH - 198, 7, 186, 31, COLOR_WHITE);
+    // Caja de golpes (derecha) - proporcional
+    int right_box_x = SCREEN_WIDTH - right_box_width - 10;
+    drawRect(right_box_x, 5, right_box_width, 35, COLOR_BLACK);
+    drawRect(right_box_x + 2, 7, right_box_width - 4, 31, COLOR_WHITE);
     
-    // Dibujar "Golpes: Y" - texto y número en la misma línea
-    drawSimpleText("GOLPES: ", SCREEN_WIDTH - 190, 15);
-    drawNumber(hits, SCREEN_WIDTH - 105, 15); // Ajustado para el nuevo espaciado
+    // Texto "GOLPES:" ajustado al tamaño de caja
+    drawSimpleText("GOLPES: ", right_box_x + 8, 15);
+    drawNumber(hits, right_box_x + 8 + 88, 15); // Posición relativa al texto
 }
 
 // Función para dibujar texto prolijo con patrones bitmap limpios - AMPLIADA
@@ -689,15 +706,14 @@ void handleInput(void) {
 void processMovement(void) {
     // Movimiento continuo y fluido para jugador 1
     if (p1_moving > 0) {
-        // Usar las nuevas tablas trigonométricas - ajustado para ángulos de 8 grados
-        int angle_index = (paddle1.aim_angle / 10) % 36; // Aproximar a la tabla más cercana
+        int angle_index = (paddle1.aim_angle / 10) % 36;
         int angle_x = cos_table_fine[angle_index];
         int angle_y = sin_table_fine[angle_index];
         
-        // Velocidad fluida y suave
-        int new_x = paddle1.x + (angle_x * 10) / 100; // Velocidad optimizada para fluidez
+        int new_x = paddle1.x + (angle_x * 10) / 100;
         int new_y = paddle1.y + (angle_y * 10) / 100;
         
+        // Usar límites dinámicos
         if (new_x >= 0 && new_x + paddle1.width <= SCREEN_WIDTH &&
             new_y >= 45 && new_y + paddle1.height <= SCREEN_HEIGHT) {
             paddle1.x = new_x;
@@ -707,15 +723,14 @@ void processMovement(void) {
     
     // Movimiento continuo y fluido para jugador 2
     if (gameMode == MODE_MULTIPLAYER && p2_moving > 0) {
-        // Usar las nuevas tablas trigonométricas - ajustado para ángulos de 8 grados
-        int angle_index = (paddle2.aim_angle / 10) % 36; // Aproximar a la tabla más cercana
+        int angle_index = (paddle2.aim_angle / 10) % 36;
         int angle_x = cos_table_fine[angle_index];
         int angle_y = sin_table_fine[angle_index];
         
-        // Velocidad fluida y suave
         int new_x = paddle2.x + (angle_x * 10) / 100;
         int new_y = paddle2.y + (angle_y * 10) / 100;
         
+        // Usar límites dinámicos
         if (new_x >= 0 && new_x + paddle2.width <= SCREEN_WIDTH &&
             new_y >= 45 && new_y + paddle2.height <= SCREEN_HEIGHT) {
             paddle2.x = new_x;
@@ -858,10 +873,10 @@ void updateGame(void) {
     // Rebotes en las paredes con física ajustada
     if (ball.x - ball.size <= 0) {
         ball.x = ball.size;
-        ball.vx = -ball.vx * 87 / 100; // Conservación de energía optimizada
-        playSound(400, 60); // Sonido más corto
+        ball.vx = -ball.vx * 87 / 100;
+        playSound(400, 60);
     }
-    if (ball.x + ball.size >= SCREEN_WIDTH) {
+    if (ball.x + ball.size >= SCREEN_WIDTH) {  // Ya usa SCREEN_WIDTH dinámico
         ball.x = SCREEN_WIDTH - ball.size;
         ball.vx = -ball.vx * 87 / 100;
         playSound(400, 60);
@@ -871,7 +886,7 @@ void updateGame(void) {
         ball.vy = -ball.vy * 87 / 100;
         playSound(400, 60);
     }
-    if (ball.y + ball.size >= SCREEN_HEIGHT) {
+    if (ball.y + ball.size >= SCREEN_HEIGHT) {  // Ya usa SCREEN_HEIGHT dinámico
         ball.y = SCREEN_HEIGHT - ball.size;
         ball.vy = -ball.vy * 87 / 100;
         playSound(400, 60);
@@ -899,16 +914,22 @@ void showLevelComplete(void) {
     
     fillScreen(COLOR_YELLOW);
     
-    // Caja principal más grande para acomodar el texto
-    drawRect(150, 250, 700, 200, COLOR_BLUE);
-    drawRect(160, 260, 680, 180, COLOR_WHITE);
+    int box_width = SCREEN_WIDTH * 3 / 5;  // 60% del ancho de pantalla
+    int box_height = 200;
+    int box_x = (SCREEN_WIDTH - box_width) / 2;
+    int box_y = (SCREEN_HEIGHT - box_height) / 2;
     
-    // Mensaje de nivel completado centrado y prolijo
-    drawSimpleText("NIVEL COMPLETADO!", 280, 300);
+    drawRect(box_x, box_y, box_width, box_height, COLOR_BLUE);
+    drawRect(box_x + 10, box_y + 10, box_width - 20, box_height - 20, COLOR_WHITE);
     
-    // Información de golpes centrada
-    drawSimpleText("GOLPES: ", 380, 350);
-    drawNumber(hits, 480, 350);
+    // Texto centrado dinámicamente
+    int text_x = box_x + (box_width - 190) / 2;  // Centrar "NIVEL COMPLETADO!" 
+    drawSimpleText("NIVEL COMPLETADO!", text_x, box_y + 50);
+    
+    int golpes_x = box_x + (box_width - 100) / 2;  // Centrar "GOLPES:"
+    drawSimpleText("GOLPES: ", golpes_x, box_y + 100);
+    drawNumber(hits, golpes_x + 88, box_y + 100);
+    
     
     // Pausa MUCHO más larga para poder leer tranquilo
     for (volatile int i = 0; i < 50000000; i++); 
@@ -925,16 +946,21 @@ void showHoleMessage(void) {
     
     fillScreen(COLOR_YELLOW);
     
-    // Caja principal más grande para acomodar el texto
-    drawRect(150, 250, 700, 200, COLOR_BLUE);
-    drawRect(160, 260, 680, 180, COLOR_WHITE);
+    int box_width = SCREEN_WIDTH * 3 / 5;  // 60% del ancho de pantalla
+    int box_height = 200;
+    int box_x = (SCREEN_WIDTH - box_width) / 2;
+    int box_y = (SCREEN_HEIGHT - box_height) / 2;
     
-    // Mensaje de juego completado centrado y prolijo
-    drawSimpleText("JUEGO COMPLETADO!", 270, 300);
+    drawRect(box_x, box_y, box_width, box_height, COLOR_BLUE);
+    drawRect(box_x + 10, box_y + 10, box_width - 20, box_height - 20, COLOR_WHITE);
     
-    // Información de golpes totales centrada
-    drawSimpleText("GOLPES TOTALES: ", 290, 350);
-    drawNumber(hits, 500, 350);
+    // Texto centrado dinámicamente
+    int text_x = box_x + (box_width - 180) / 2;  // Centrar "JUEGO COMPLETADO!"
+    drawSimpleText("JUEGO COMPLETADO!", text_x, box_y + 50);
+    
+    int golpes_x = box_x + (box_width - 160) / 2;  // Centrar "GOLPES TOTALES:"
+    drawSimpleText("GOLPES TOTALES: ", golpes_x, box_y + 100);
+    drawNumber(hits, golpes_x + 168, box_y + 100);
     
     // Pausa más larga para el final del juego
     for (volatile int i = 0; i < 60000000; i++); 

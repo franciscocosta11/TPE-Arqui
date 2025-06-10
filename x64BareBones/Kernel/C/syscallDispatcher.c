@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include <videoDriver.h>
+#include "videoDriver.h"
 #include <keyboard.h>
 #include <time.h>
 #include "soundDriver.h"
@@ -121,11 +121,11 @@ void syscallDispatcher(uint64_t rax, uint64_t rsi, uint64_t rdx, uint64_t rcx) {
         case 15: // SYS_SOUND_OFF
             soundOff();
             break;
-            
+
         case 16: // SYS_GET_SCREEN_WIDTH
-            return vdGetScreenWidth();
-    
+            return (uint64_t)vdGetScreenWidth();  // ← Ya correcto
+
         case 17: // SYS_GET_SCREEN_HEIGHT
-            return vdGetScreenHeight();
+            return (uint64_t)vdGetScreenHeight();
     }
 }

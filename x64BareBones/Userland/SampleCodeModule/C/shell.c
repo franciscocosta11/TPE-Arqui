@@ -1,4 +1,5 @@
 #include "./../include/libc.h"
+#include "./../include/shell.h"
 #define USER_LENGTH 19 // longitud de cadena "mark_zuckerberg", aka el usuario por defecto
 #define CMD_MAX 64
 #define USERNAME_MAX 32
@@ -103,6 +104,9 @@ void shell() {
     char command[CMD_MAX];
     char argument[USERNAME_MAX];
     int inputLen = 0;
+
+    printf("%d/n", getScreenHeight());
+    printf("%d/n", getScreenWidth());
 
     // SONIDO DE BIENVENIDA (SOLO UNA VEZ)
     print("¡Bienvenido al sistema!\n");
