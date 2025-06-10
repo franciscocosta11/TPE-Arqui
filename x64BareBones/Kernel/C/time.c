@@ -30,7 +30,7 @@ static uint8_t read_rtc_register(uint8_t reg) {
 void getSystemTime(char *buffer) {
     uint8_t second = bcd_to_decimal(read_rtc_register(SECONDS_REGISTER));
     uint8_t minute = bcd_to_decimal(read_rtc_register(MINUTES_REGISTER));
-    uint8_t hour = bcd_to_decimal(read_rtc_register(HOURS_REGISTER));
+    uint8_t hour = bcd_to_decimal(read_rtc_register(HOURS_REGISTER))- 3;
     uint8_t day = bcd_to_decimal(read_rtc_register(DAY_REGISTER));
     uint8_t month = bcd_to_decimal(read_rtc_register(MONTH_REGISTER));
     uint8_t year = bcd_to_decimal(read_rtc_register(YEAR_REGISTER));

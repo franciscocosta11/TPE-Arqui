@@ -6,7 +6,7 @@
 
 extern void saveRegisters(uint64_t* regs);
 
-void syscallDispatcher(uint64_t rax, uint64_t rsi, uint64_t rdx, uint64_t rcx) {
+uint64_t syscallDispatcher(uint64_t rax, uint64_t rsi, uint64_t rdx, uint64_t rcx) {
     switch (rax) {
         case 0: // SYS_READ
             {
@@ -128,4 +128,5 @@ void syscallDispatcher(uint64_t rax, uint64_t rsi, uint64_t rdx, uint64_t rcx) {
         case 17: // SYS_GET_SCREEN_HEIGHT
             return (uint64_t)vdGetScreenHeight();
     }
+    return 0;
 }

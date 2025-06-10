@@ -44,7 +44,7 @@ struct vbe_mode_info_structure {
     uint8_t reserved1[206];
 } __attribute__ ((packed));
 
-typedef struct vbe_mode_info_structure * VBEInfoPtr;
+typedef struct vbe_mode_info_structure * VBEInfoPtr; // creo puntero a la estructura con los datos de la pantalla
 
 VBEInfoPtr VBE_mode_info = (VBEInfoPtr) 0x0000000000005C00;
 
@@ -54,7 +54,7 @@ static uint16_t cursorY = 0;
 static uint32_t defaultFgColor = 0xFFFFFF; // Blanco por defecto
 static uint32_t defaultBgColor = 0x000000; // Negro por defecto
 
-// AGREGADO: Tabla de colores disponibles
+
 typedef struct {
     const char* name;
     uint32_t color;
@@ -97,12 +97,6 @@ unsigned char *getCharHexData(uint8_t c) {
     return font8x16[c];
 }
 
-// AGREGADO: Función para cambiar color del texto
-// void vdSetColor(uint32_t fgColor) {
-//     defaultFgColor = fgColor;
-// }
-
-// AGREGADO: Función para obtener color por nombre
 uint32_t vdGetColorByName(const char* colorName) {
     for (int i = 0; available_colors[i].name != 0; i++) {
         if (vd_strcmp(colorName, available_colors[i].name) == 0) {  // CAMBIADO: usar vd_strcmp
@@ -112,7 +106,6 @@ uint32_t vdGetColorByName(const char* colorName) {
     return 0xFFFFFF; // Blanco por defecto si no se encuentra
 }
 
-// AGREGADO: Función para listar colores disponibles
 void vdPrintAvailableColors() {
     vdPrint("Colores disponibles: ");
     for (int i = 0; available_colors[i].name != NULL; i++) {
@@ -124,13 +117,12 @@ void vdPrintAvailableColors() {
     vdPrint("\n");
 }
 
-// Resto de funciones existentes (sin cambios)
 void vdPrintChar(char character) {
-    vdPrintCharStyled(character, defaultFgColor, defaultBgColor);
+    vdPrintCharStyled(character, defaultFgColor, defaultBgColor); // imprimo caracter con los colores default
 }
 
 void vdPrint(const char *string) {
-    vdPrintStyled((char*)string, defaultFgColor, defaultBgColor);
+    vdPrintStyled((char*)string, defaultFgColor, defaultBgColor); // imprimo string con los colores default
 }
 
 uint64_t vdPrintCharStyled(char character, uint32_t color, uint32_t bgColor) {
@@ -140,17 +132,17 @@ uint64_t vdPrintCharStyled(char character, uint32_t color, uint32_t bgColor) {
     unsigned char* charData = getCharHexData(character);
     
     if (character == '\n') {
-        vdNewline();
+        vdNewline(); // enter
         return 0;
     }
     
     if (character == '\b') {
-        vdDelete();
+        vdDelete(); // borro caracter
         return 0;
     }
     
-    if (cursorX + (fontWidth * currentFontSize) >= SCREEN_WIDTH_PIXELS) {
-        vdNewline();
+    if (cursorX + (fontWidth * currentFontSize) >= SCREEN_WIDTH_PIXELS) { // me pase de el ancho maximo
+        vdNewline(); 
     }
     
     for (uint8_t y = 0; y < fontHeight; y++) {
@@ -161,9 +153,7 @@ uint64_t vdPrintCharStyled(char character, uint32_t color, uint32_t bgColor) {
             
             for (uint8_t sy = 0; sy < currentFontSize; sy++) {
                 for (uint8_t sx = 0; sx < currentFontSize; sx++) {
-                    putPixel(pixelColor, 
-                             cursorX + (x * currentFontSize) + sx, 
-                             cursorY + (y * currentFontSize) + sy);
+                    putPixel(pixelColor, cursorX + (x * currentFontSize) + sx, cursorY + (y * currentFontSize) + sy);
                 }
             }
         }
@@ -195,7 +185,31 @@ void vdNewline() {
     cursorY += HEIGHT_S * currentFontSize;
     
     if (cursorY + (HEIGHT_S * currentFontSize) >= SCREEN_HEIGHT_PIXELS) {
-        vdClear(); 
+        // Hacer scroll
+        uint16_t lineHeight = HEIGHT_S * currentFontSize;
+        
+        // Copiar todas las lineas una posición hacia arriba
+        for (uint16_t y = lineHeight; y < SCREEN_HEIGHT_PIXELS; y++) {
+            for (uint16_t x = 0; x < SCREEN_WIDTH_PIXELS; x++) {
+                // Leer pixel de la línea actual
+                uint8_t * framebuffer = (uint8_t *)(uint64_t)VBE_mode_info->framebuffer;
+                uint64_t offset = (x * 3) + (y * VBE_mode_info->pitch);
+                
+                uint32_t pixel = (framebuffer[offset+2] << 16) | 
+                                (framebuffer[offset+1] << 8) | 
+                                framebuffer[offset];
+                
+                // Escribir pixel en la línea anterior
+                putPixel(pixel, x, y - lineHeight);
+            }
+        }
+        
+        // Limpiar la última línea
+        drawRectangle(defaultBgColor, 0, SCREEN_HEIGHT_PIXELS - lineHeight, 
+                     SCREEN_WIDTH_PIXELS, SCREEN_HEIGHT_PIXELS);
+        
+        // Ajustar cursor a la última línea
+        cursorY = SCREEN_HEIGHT_PIXELS - lineHeight;
     }
 }
 

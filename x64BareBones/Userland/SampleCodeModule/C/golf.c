@@ -334,15 +334,14 @@ void drawUI(void) {
     drawNumber(hits, right_box_x + 8 + 88, 15); // Posición relativa al texto
 }
 
-// Función para dibujar texto prolijo con patrones bitmap limpios - AMPLIADA
+// Función para dibujar texto
 void drawSimpleText(const char* text, int x, int y) {
     for (int i = 0; text[i] != '\0'; i++) {
         char c = text[i];
         int char_x = x + (i * 10); // Espaciado entre caracteres
         
-        // Patrones 8x12 más profesionales para cada letra
+        // Patrones 8x12 
         if (c == 'N') {
-            // N más limpia
             int n_pattern[] = {
                 1,0,0,0,0,0,1,0,
                 1,1,0,0,0,0,1,0,
@@ -359,7 +358,6 @@ void drawSimpleText(const char* text, int x, int y) {
             };
             drawCharPattern(n_pattern, char_x, y, 8, 12);
         } else if (c == 'I' || c == 'i') {
-            // I más limpia
             int i_pattern[] = {
                 0,1,1,1,1,1,0,0,
                 0,0,0,1,0,0,0,0,
@@ -376,7 +374,6 @@ void drawSimpleText(const char* text, int x, int y) {
             };
             drawCharPattern(i_pattern, char_x, y, 8, 12);
         } else if (c == 'V' || c == 'v') {
-            // V más limpia
             int v_pattern[] = {
                 1,0,0,0,0,0,1,0,
                 1,0,0,0,0,0,1,0,
@@ -393,7 +390,6 @@ void drawSimpleText(const char* text, int x, int y) {
             };
             drawCharPattern(v_pattern, char_x, y, 8, 12);
         } else if (c == 'E' || c == 'e') {
-            // E más limpia
             int e_pattern[] = {
                 1,1,1,1,1,1,1,0,
                 1,0,0,0,0,0,0,0,
@@ -410,7 +406,6 @@ void drawSimpleText(const char* text, int x, int y) {
             };
             drawCharPattern(e_pattern, char_x, y, 8, 12);
         } else if (c == 'L' || c == 'l') {
-            // L más limpia
             int l_pattern[] = {
                 1,0,0,0,0,0,0,0,
                 1,0,0,0,0,0,0,0,
@@ -427,7 +422,6 @@ void drawSimpleText(const char* text, int x, int y) {
             };
             drawCharPattern(l_pattern, char_x, y, 8, 12);
         } else if (c == ':') {
-            // : más limpia
             int colon_pattern[] = {
                 0,0,0,0,0,0,0,0,
                 0,0,0,0,0,0,0,0,
@@ -444,7 +438,7 @@ void drawSimpleText(const char* text, int x, int y) {
             };
             drawCharPattern(colon_pattern, char_x, y, 8, 12);
         } else if (c == 'C' || c == 'c') {
-            // C más limpia
+
             int c_pattern[] = {
                 0,1,1,1,1,1,0,0,
                 1,0,0,0,0,0,1,0,
@@ -461,7 +455,6 @@ void drawSimpleText(const char* text, int x, int y) {
             };
             drawCharPattern(c_pattern, char_x, y, 8, 12);
         } else if (c == 'O' || c == 'o') {
-            // O más limpia
             int o_pattern[] = {
                 0,1,1,1,1,1,0,0,
                 1,0,0,0,0,0,1,0,
@@ -478,7 +471,6 @@ void drawSimpleText(const char* text, int x, int y) {
             };
             drawCharPattern(o_pattern, char_x, y, 8, 12);
         } else if (c == 'M' || c == 'm') {
-            // M más limpia
             int m_pattern[] = {
                 1,0,0,0,0,0,1,0,
                 1,1,0,0,0,1,1,0,
@@ -495,7 +487,6 @@ void drawSimpleText(const char* text, int x, int y) {
             };
             drawCharPattern(m_pattern, char_x, y, 8, 12);
         } else if (c == 'P' || c == 'p') {
-            // P más limpia
             int p_pattern[] = {
                 1,1,1,1,1,1,0,0,
                 1,0,0,0,0,0,1,0,
@@ -512,7 +503,6 @@ void drawSimpleText(const char* text, int x, int y) {
             };
             drawCharPattern(p_pattern, char_x, y, 8, 12);
         } else if (c == 'T' || c == 't') {
-            // T más limpia
             int t_pattern[] = {
                 1,1,1,1,1,1,1,0,
                 0,0,0,1,0,0,0,0,
@@ -529,7 +519,6 @@ void drawSimpleText(const char* text, int x, int y) {
             };
             drawCharPattern(t_pattern, char_x, y, 8, 12);
         } else if (c == 'A' || c == 'a') {
-            // A más limpia
             int a_pattern[] = {
                 0,0,1,1,0,0,0,0,
                 0,1,0,0,1,0,0,0,
@@ -546,7 +535,6 @@ void drawSimpleText(const char* text, int x, int y) {
             };
             drawCharPattern(a_pattern, char_x, y, 8, 12);
         } else if (c == 'D' || c == 'd') {
-            // D más limpia
             int d_pattern[] = {
                 1,1,1,1,1,0,0,0,
                 1,0,0,0,0,1,0,0,
@@ -563,7 +551,6 @@ void drawSimpleText(const char* text, int x, int y) {
             };
             drawCharPattern(d_pattern, char_x, y, 8, 12);
         } else if (c == 'G' || c == 'g') {
-            // G más limpia
             int g_pattern[] = {
                 0,1,1,1,1,1,0,0,
                 1,0,0,0,0,0,1,0,
@@ -580,7 +567,6 @@ void drawSimpleText(const char* text, int x, int y) {
             };
             drawCharPattern(g_pattern, char_x, y, 8, 12);
         } else if (c == 'S' || c == 's') {
-            // S más limpia
             int s_pattern[] = {
                 0,1,1,1,1,1,0,0,
                 1,0,0,0,0,0,1,0,
@@ -597,7 +583,6 @@ void drawSimpleText(const char* text, int x, int y) {
             };
             drawCharPattern(s_pattern, char_x, y, 8, 12);
         } else if (c == '!') {
-            // ! más limpia
             int excl_pattern[] = {
                 0,0,1,1,0,0,0,0,
                 0,0,1,1,0,0,0,0,
@@ -614,7 +599,6 @@ void drawSimpleText(const char* text, int x, int y) {
             };
             drawCharPattern(excl_pattern, char_x, y, 8, 12);
         } else if (c == ' ') {
-            // Espacio - no dibujar nada
         }
     }
 }
