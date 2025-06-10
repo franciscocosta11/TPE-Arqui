@@ -17,6 +17,8 @@
 #define SYS_PLAY_BEEP      13  
 #define SYS_PLAY_WIN_SOUND 14
 #define SYS_SOUND_OFF      15
+#define SYS_GET_SCREEN_WIDTH  16
+#define SYS_GET_SCREEN_HEIGHT 17
 
 /**
  * @brief Reproduce un sonido personalizado con frecuencia y duración específicas
@@ -190,5 +192,17 @@ int printf(const char *format, ...);
  * @param ... Punteros a variables donde almacenar los valores
  */
 int scanf(const char *format, ...);
+
+/**
+ * @brief Obtiene el ancho de la pantalla
+ * @return Ancho en píxeles
+ */
+uint16_t getScreenWidth(void);
+
+/**
+ * @brief Obtiene la altura de la pantalla
+ * @return Altura en píxeles
+ */
+uint16_t getScreenHeight(void);
 
 #endif

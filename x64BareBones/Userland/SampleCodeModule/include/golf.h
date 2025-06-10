@@ -5,8 +5,8 @@
 
 // CONSTANTES DEL JUEGO
 
-#define SCREEN_WIDTH 1024
-#define SCREEN_HEIGHT 768
+extern int SCREEN_WIDTH;
+extern int SCREEN_HEIGHT;
 #define BALL_SIZE 8
 #define PADDLE_WIDTH 15
 #define PADDLE_HEIGHT 60
@@ -181,5 +181,18 @@ void showLevelComplete(void);
  * @brief Reinicia la pelota a su posición inicial
  */
 void resetBall(void);
+
+// Agregar estas declaraciones:
+/**
+ * @brief Actualiza el estado de las teclas presionadas
+ */
+void updateKeyStates(void);
+
+/**
+ * @brief Verifica si una tecla específica está presionada
+ * @param key Código de la tecla a verificar
+ * @return 1 si está presionada, 0 si no
+ */
+int isKeyPressed(unsigned char key);
 
 #endif

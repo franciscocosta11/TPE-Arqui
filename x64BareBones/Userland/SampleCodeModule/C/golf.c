@@ -1,7 +1,9 @@
 #include "./../include/libc.h"
 #include "./../include/golf.h"
 
-// Variables globales del juego
+int SCREEN_HEIGHT = 768;
+int SCREEN_WIDTH = 1024;
+
 static Ball ball;
 static Paddle paddle1, paddle2;
 static Hole hole;
@@ -11,21 +13,38 @@ static int gameState = GAME_MENU;
 static int gameMode = MODE_SINGLE;
 static int currentLevel = 1;
 static int maxLevels = 3;
-static int currentPlayer = 1; // Para modo multijugador
 
-// Variables para generador de números aleatorios
 static unsigned int random_seed = 1;
 
-// Tablas trigonométricas
-static int cos_table[24] = {
-    100, 97, 87, 71, 50, 26, 0, -26, -50, -71, -87, -97,
-    -100, -97, -87, -71, -50, -26, 0, 26, 50, 71, 87, 97
+// Tablas trigonométricas de alta precisión (cada 10 grados) - 36 posiciones
+static int cos_table_fine[36] = {
+    100, 98, 94, 87, 77, 64, 50, 34, 17, 0, -17, -34, -50, -64, -77, -87, -94, -98,
+    -100, -98, -94, -87, -77, -64, -50, -34, -17, 0, 17, 34, 50, 64, 77, 87, 94, 98
 };
 
-static int sin_table[24] = {
-    0, -26, -50, -71, -87, -97, -100, -97, -87, -71, -50, -26,
-    0, 26, 50, 71, 87, 97, 100, 97, 87, 71, 50, 26
+static int sin_table_fine[36] = {
+    0, 17, 34, 50, 64, 77, 87, 94, 98, 100, 98, 94, 87, 77, 64, 50, 34, 17,
+    0, -17, -34, -50, -64, -77, -87, -94, -98, -100, -98, -94, -87, -77, -64, -50, -34, -17
 };
+
+// Variables de control de movimiento mejoradas
+static int p1_moving = 0;
+static int p2_moving = 0;
+static int p1_rotate_cooldown = 0;
+static int p2_rotate_cooldown = 0;
+
+// Variables para movimiento continuo y fluido
+static int p1_forward_key_held = 0;
+static int p2_forward_key_held = 0;
+
+// Declaraciones de funciones
+void drawCharPattern(int* pattern, int x, int y, int width, int height);
+void drawSimpleText(const char* text, int x, int y);
+void handleInput(void);
+void processMovement(void);
+void updateGame(void);
+void drawGame(void);
+void drawUI(void);
 
 void startGolfGame(void) {
     clearScreen();
@@ -39,6 +58,7 @@ void startGolfGame(void) {
                 break;
             case GAME_PLAYING:
                 handleInput();
+                processMovement();
                 updateGame();
                 drawGame();
                 break;
@@ -50,7 +70,19 @@ void startGolfGame(void) {
                 break;
         }
         
-        for (volatile int i = 0; i < 50000; i++); 
+        // Optimizado para máxima fluidez
+        for (volatile int i = 0; i < 5000; i++);
+    }
+}
+
+// Función auxiliar para dibujar patrones de caracteres de forma eficiente
+void drawCharPattern(int* pattern, int x, int y, int width, int height) {
+    for (int row = 0; row < height; row++) {
+        for (int col = 0; col < width; col++) {
+            if (pattern[row * width + col]) {
+                putPixel(COLOR_BLACK, x + col, y + row);
+            }
+        }
     }
 }
 
@@ -60,19 +92,14 @@ void showMenu(void) {
     if (!menuInitialized) {
         fillScreen(COLOR_BLACK);
         
-       
-        
-        // Dibujar "PONGIS-GOLF" en el título
         print("PONGIS-GOLF\n");
         char username[] = "Negrito";
-        // Instrucciones
-        printf("Bienvenido al pongis golf de los pibes %s", username);
+        printf("Bienvenido al pongis golf de los pibes %s\n", username);
         print("Para jugar de a un jugador, presione 1. Para jugar de a dos jugadores, presione 2\n");
         
         menuInitialized = 1;
     }
     
-    // Leer input del menú
     char key = getKeyNonBlocking();
     
     if (key == '1') {
@@ -87,39 +114,63 @@ void showMenu(void) {
         gameState = GAME_PLAYING;
         playBeep();
         initGame();
-    } else if (key == 27) { // ESC
+    } else if (key == 27) {
         gameRunning = 0;
     }
 }
 
+// Generador de números aleatorios mejorado
 int simpleRandom(int min, int max) {
-    random_seed = random_seed * 1103515245 + 12345;
+    random_seed = random_seed * 1664525 + 1013904223; // Mejores constantes
     return min + (random_seed % (max - min + 1));
 }
 
+// Tamaños de hoyo más progresivos
 int getHoleSize(int level) {
     switch (level) {
-        case 1: return 30;  // Fácil
-        case 2: return 20;  // Medio
-        case 3: return 15;  // Difícil
-        default: return 15;
+        case 1: return 35;  // Más grande para empezar
+        case 2: return 25;  // Tamaño intermedio
+        case 3: return 18;  // Más pequeño pero no imposible
+        default: return 18;
     }
 }
 
 void placeHoleRandomly(void) {
     hole.size = getHoleSize(currentLevel);
-    int margin = hole.size + 30;
+    int margin = hole.size + 50; // Más margen
     
     do {
         hole.x = simpleRandom(margin, SCREEN_WIDTH - margin);
-        hole.y = simpleRandom(margin, SCREEN_HEIGHT - margin);
+        hole.y = simpleRandom(margin + 45, SCREEN_HEIGHT - margin); // Evitar recuadros flotantes
         
+        // Verificar distancia mínima de la pelota
         int dx = hole.x - ball.x;
         int dy = hole.y - ball.y;
         int distance_sq = dx*dx + dy*dy;
-        int min_distance = 200;
+        int min_distance = 250; // Distancia mínima aumentada
         
-        if (distance_sq > min_distance * min_distance) {
+        // También verificar que no esté muy cerca de los paddles
+        int dx1 = hole.x - (paddle1.x + paddle1.width/2);
+        int dy1 = hole.y - (paddle1.y + paddle1.height/2);
+        int dist1_sq = dx1*dx1 + dy1*dy1;
+        
+        int dx2 = 999, dy2 = 999, dist2_sq = 999999;
+        if (gameMode == MODE_MULTIPLAYER) {
+            dx2 = hole.x - (paddle2.x + paddle2.width/2);
+            dy2 = hole.y - (paddle2.y + paddle2.height/2);
+            dist2_sq = dx2*dx2 + dy2*dy2;
+        }
+        
+        // Verificar que no esté debajo de los recuadros de UI (ajustado para nuevos tamaños)
+        int ui_conflict = 0;
+        if (hole.y < 50) { // Área de recuadros flotantes
+            if ((hole.x < 170) || (hole.x > SCREEN_WIDTH - 210)) { // Áreas de los recuadros más grandes
+                ui_conflict = 1;
+            }
+        }
+        
+        if (distance_sq > min_distance * min_distance && 
+            dist1_sq > 150*150 && dist2_sq > 150*150 && !ui_conflict) {
             break;
         }
     } while (1);
@@ -128,37 +179,42 @@ void placeHoleRandomly(void) {
 void initGame(void) {
     fillScreen(COLOR_GREEN);
     
-    random_seed = 12345 + currentLevel * 1000;
+    // Semilla más variada
+    random_seed = 12345 + currentLevel * 1000 + hits * 100;
     
-    // Pelota en el centro
     ball.x = SCREEN_WIDTH / 2;
     ball.y = SCREEN_HEIGHT / 2;
     ball.vx = 0;
     ball.vy = 0;
     ball.size = BALL_SIZE;
     
-    // Paddle 1 (Jugador 1)
     paddle1.x = 50;
     paddle1.y = SCREEN_HEIGHT / 2 - (BALL_SIZE * 3);
+    if (paddle1.y < 45) paddle1.y = 45; // Asegurar que no esté en la UI
     paddle1.width = BALL_SIZE * 6;
     paddle1.height = BALL_SIZE * 6;
-    paddle1.color = COLOR_GRAY;
+    paddle1.color = COLOR_BLUE;
     paddle1.aim_angle = 0;
     
-    // Paddle 2 (Jugador 2) - solo en modo multijugador
     if (gameMode == MODE_MULTIPLAYER) {
         paddle2.x = SCREEN_WIDTH - 100;
         paddle2.y = SCREEN_HEIGHT / 2 - (BALL_SIZE * 3);
+        if (paddle2.y < 45) paddle2.y = 45; // Asegurar que no esté en la UI
         paddle2.width = BALL_SIZE * 6;
         paddle2.height = BALL_SIZE * 6;
-        paddle2.color = COLOR_CYAN;
-        paddle2.aim_angle = 180; // Apuntando hacia la izquierda
-        currentPlayer = 1;
+        paddle2.color = COLOR_RED;
+        paddle2.aim_angle = 180;
     }
     
     placeHoleRandomly();
     
     hits = 0;
+    p1_moving = 0;
+    p2_moving = 0;
+    p1_rotate_cooldown = 0;
+    p2_rotate_cooldown = 0;
+    p1_forward_key_held = 0;
+    p2_forward_key_held = 0;
 }
 
 void drawGame(void) {
@@ -174,57 +230,56 @@ void drawGame(void) {
         initialized = 1;
     }
     
-    // Limpiar posiciones anteriores
+    // Limpiar posición anterior del hoyo SOLO si cambió
     if (last_hole_x != -1 && (last_hole_x != hole.x || last_hole_y != hole.y)) {
-        drawCircle(last_hole_x, last_hole_y, getHoleSize(currentLevel) + 2, COLOR_GREEN);
+        drawCircle(last_hole_x, last_hole_y, getHoleSize(currentLevel) + 3, COLOR_GREEN);
     }
     
+    // Limpiar posición anterior de la pelota SOLO si se movió
     if (last_ball_x != -1 && (last_ball_x != ball.x || last_ball_y != ball.y)) {
         drawCircle(last_ball_x, last_ball_y, ball.size + 2, COLOR_GREEN);
     }
     
+    // Limpiar paddle 1 SOLO si se movió o rotó
     if (last_paddle1_x != -1 && (last_paddle1_x != paddle1.x || last_paddle1_y != paddle1.y || last_angle1 != paddle1.aim_angle)) {
         int old_center_x = last_paddle1_x + paddle1.width/2;
         int old_center_y = last_paddle1_y + paddle1.height/2;
-        drawRect(old_center_x - 40, old_center_y - 40, 80, 80, COLOR_GREEN);
+        // Limpiar área más grande para incluir la flecha
+        drawRect(old_center_x - 60, old_center_y - 60, 120, 120, COLOR_GREEN);
     }
     
+    // Limpiar paddle 2 SOLO si se movió o rotó
     if (gameMode == MODE_MULTIPLAYER && last_paddle2_x != -1 && 
         (last_paddle2_x != paddle2.x || last_paddle2_y != paddle2.y || last_angle2 != paddle2.aim_angle)) {
         int old_center_x = last_paddle2_x + paddle2.width/2;
         int old_center_y = last_paddle2_y + paddle2.height/2;
-        drawRect(old_center_x - 40, old_center_y - 40, 80, 80, COLOR_GREEN);
+        drawRect(old_center_x - 60, old_center_y - 60, 120, 120, COLOR_GREEN);
     }
     
-    // Dibujar elementos del juego
+    // Dibujar hoyo con borde negro
+    drawCircle(hole.x, hole.y, hole.size + 2, COLOR_BLACK);
     drawCircle(hole.x, hole.y, hole.size, COLOR_BLACK);
+    
+    // Dibujar pelota blanca
     drawCircle(ball.x, ball.y, ball.size, COLOR_WHITE);
     
-    // Dibujar paddle 1
+    // Dibujar paddles con sus flechas
     int paddle1_center_x = paddle1.x + paddle1.width/2;
     int paddle1_center_y = paddle1.y + paddle1.height/2;
-    uint32_t p1_color = (gameMode == MODE_SINGLE || currentPlayer == 1) ? paddle1.color : COLOR_GRAY;
-    drawCircle(paddle1_center_x, paddle1_center_y, paddle1.width/2, p1_color);
+    drawCircle(paddle1_center_x, paddle1_center_y, paddle1.width/2, paddle1.color);
+    drawAimArrow(&paddle1);
     
-    if (gameMode == MODE_SINGLE || currentPlayer == 1) {
-        drawAimArrow(&paddle1);
-    }
-    
-    // Dibujar paddle 2 (solo en multijugador)
     if (gameMode == MODE_MULTIPLAYER) {
         int paddle2_center_x = paddle2.x + paddle2.width/2;
         int paddle2_center_y = paddle2.y + paddle2.height/2;
-        uint32_t p2_color = (currentPlayer == 2) ? paddle2.color : COLOR_GRAY;
-        drawCircle(paddle2_center_x, paddle2_center_y, paddle2.width/2, p2_color);
-        
-        if (currentPlayer == 2) {
-            drawAimArrow(&paddle2);
-        }
+        drawCircle(paddle2_center_x, paddle2_center_y, paddle2.width/2, paddle2.color);
+        drawAimArrow(&paddle2);
     }
     
+    // Dibujar UI siempre al final
     drawUI();
     
-    // Actualizar posiciones
+    // Actualizar posiciones anteriores
     last_ball_x = ball.x;
     last_ball_y = ball.y;
     last_paddle1_x = paddle1.x;
@@ -241,102 +296,431 @@ void drawGame(void) {
     last_hole_y = hole.y;
 }
 
+// UI sin fondo amarillo - solo recuadros flotantes
 void drawUI(void) {
-    // Limpiar área de UI
-    drawRect(0, 0, SCREEN_WIDTH, 40, COLOR_YELLOW);
+    // NO dibujar fondo amarillo - dejar transparente
     
-    // Mostrar nivel
-    drawRect(10, 5, 120, 30, COLOR_BLACK);
-    drawRect(15, 10, 110, 20, COLOR_WHITE);
-    drawNumber(currentLevel, 80, 15);
+    // Caja del nivel (izquierda) - flotante y ajustada al nuevo texto
+    drawRect(10, 5, 150, 35, COLOR_BLACK);
+    drawRect(12, 7, 146, 31, COLOR_WHITE);
     
-    // Mostrar golpes
-    drawRect(SCREEN_WIDTH - 150, 5, 140, 30, COLOR_BLACK);
-    drawRect(SCREEN_WIDTH - 145, 10, 130, 20, COLOR_WHITE);
-    drawNumber(hits, SCREEN_WIDTH - 100, 15);
+    // Dibujar "Nivel: X" - texto y número en la misma línea
+    drawSimpleText("NIVEL: ", 18, 15);
+    drawNumber(currentLevel, 95, 15); // Ajustado para el nuevo espaciado
     
-    // En modo multijugador, mostrar jugador actual
-    if (gameMode == MODE_MULTIPLAYER) {
-        drawRect(SCREEN_WIDTH/2 - 60, 5, 120, 30, COLOR_BLACK);
-        drawRect(SCREEN_WIDTH/2 - 55, 10, 110, 20, COLOR_WHITE);
-        drawNumber(currentPlayer, SCREEN_WIDTH/2, 15);
+    // Caja de golpes (derecha) - flotante y ajustada al nuevo texto
+    drawRect(SCREEN_WIDTH - 200, 5, 190, 35, COLOR_BLACK);
+    drawRect(SCREEN_WIDTH - 198, 7, 186, 31, COLOR_WHITE);
+    
+    // Dibujar "Golpes: Y" - texto y número en la misma línea
+    drawSimpleText("GOLPES: ", SCREEN_WIDTH - 190, 15);
+    drawNumber(hits, SCREEN_WIDTH - 105, 15); // Ajustado para el nuevo espaciado
+}
+
+// Función para dibujar texto prolijo con patrones bitmap limpios - AMPLIADA
+void drawSimpleText(const char* text, int x, int y) {
+    for (int i = 0; text[i] != '\0'; i++) {
+        char c = text[i];
+        int char_x = x + (i * 10); // Espaciado entre caracteres
+        
+        // Patrones 8x12 más profesionales para cada letra
+        if (c == 'N') {
+            // N más limpia
+            int n_pattern[] = {
+                1,0,0,0,0,0,1,0,
+                1,1,0,0,0,0,1,0,
+                1,1,0,0,0,0,1,0,
+                1,0,1,0,0,0,1,0,
+                1,0,1,0,0,0,1,0,
+                1,0,0,1,0,0,1,0,
+                1,0,0,1,0,0,1,0,
+                1,0,0,0,1,0,1,0,
+                1,0,0,0,1,0,1,0,
+                1,0,0,0,0,1,1,0,
+                1,0,0,0,0,1,1,0,
+                1,0,0,0,0,0,1,0
+            };
+            drawCharPattern(n_pattern, char_x, y, 8, 12);
+        } else if (c == 'I' || c == 'i') {
+            // I más limpia
+            int i_pattern[] = {
+                0,1,1,1,1,1,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,1,1,1,1,1,0,0
+            };
+            drawCharPattern(i_pattern, char_x, y, 8, 12);
+        } else if (c == 'V' || c == 'v') {
+            // V más limpia
+            int v_pattern[] = {
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                0,1,0,0,0,1,0,0,
+                0,1,0,0,0,1,0,0,
+                0,1,0,0,0,1,0,0,
+                0,0,1,0,1,0,0,0,
+                0,0,1,0,1,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,0,0,0,0,0
+            };
+            drawCharPattern(v_pattern, char_x, y, 8, 12);
+        } else if (c == 'E' || c == 'e') {
+            // E más limpia
+            int e_pattern[] = {
+                1,1,1,1,1,1,1,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,1,1,1,1,1,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,1,1,1,1,1,1,0
+            };
+            drawCharPattern(e_pattern, char_x, y, 8, 12);
+        } else if (c == 'L' || c == 'l') {
+            // L más limpia
+            int l_pattern[] = {
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,1,1,1,1,1,1,0
+            };
+            drawCharPattern(l_pattern, char_x, y, 8, 12);
+        } else if (c == ':') {
+            // : más limpia
+            int colon_pattern[] = {
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,1,1,0,0,0,0,
+                0,0,1,1,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,1,1,0,0,0,0,
+                0,0,1,1,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0
+            };
+            drawCharPattern(colon_pattern, char_x, y, 8, 12);
+        } else if (c == 'C' || c == 'c') {
+            // C más limpia
+            int c_pattern[] = {
+                0,1,1,1,1,1,0,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,1,0,
+                0,1,1,1,1,1,0,0
+            };
+            drawCharPattern(c_pattern, char_x, y, 8, 12);
+        } else if (c == 'O' || c == 'o') {
+            // O más limpia
+            int o_pattern[] = {
+                0,1,1,1,1,1,0,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                0,1,1,1,1,1,0,0
+            };
+            drawCharPattern(o_pattern, char_x, y, 8, 12);
+        } else if (c == 'M' || c == 'm') {
+            // M más limpia
+            int m_pattern[] = {
+                1,0,0,0,0,0,1,0,
+                1,1,0,0,0,1,1,0,
+                1,1,0,0,0,1,1,0,
+                1,0,1,0,1,0,1,0,
+                1,0,1,0,1,0,1,0,
+                1,0,0,1,0,0,1,0,
+                1,0,0,1,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0
+            };
+            drawCharPattern(m_pattern, char_x, y, 8, 12);
+        } else if (c == 'P' || c == 'p') {
+            // P más limpia
+            int p_pattern[] = {
+                1,1,1,1,1,1,0,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,1,1,1,1,1,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0
+            };
+            drawCharPattern(p_pattern, char_x, y, 8, 12);
+        } else if (c == 'T' || c == 't') {
+            // T más limpia
+            int t_pattern[] = {
+                1,1,1,1,1,1,1,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0,
+                0,0,0,1,0,0,0,0
+            };
+            drawCharPattern(t_pattern, char_x, y, 8, 12);
+        } else if (c == 'A' || c == 'a') {
+            // A más limpia
+            int a_pattern[] = {
+                0,0,1,1,0,0,0,0,
+                0,1,0,0,1,0,0,0,
+                0,1,0,0,1,0,0,0,
+                1,0,0,0,0,1,0,0,
+                1,0,0,0,0,1,0,0,
+                1,0,0,0,0,1,0,0,
+                1,1,1,1,1,1,0,0,
+                1,0,0,0,0,1,0,0,
+                1,0,0,0,0,1,0,0,
+                1,0,0,0,0,1,0,0,
+                1,0,0,0,0,1,0,0,
+                1,0,0,0,0,1,0,0
+            };
+            drawCharPattern(a_pattern, char_x, y, 8, 12);
+        } else if (c == 'D' || c == 'd') {
+            // D más limpia
+            int d_pattern[] = {
+                1,1,1,1,1,0,0,0,
+                1,0,0,0,0,1,0,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,1,0,0,
+                1,1,1,1,1,0,0,0
+            };
+            drawCharPattern(d_pattern, char_x, y, 8, 12);
+        } else if (c == 'G' || c == 'g') {
+            // G más limpia
+            int g_pattern[] = {
+                0,1,1,1,1,1,0,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,1,1,1,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                0,1,1,1,1,1,0,0
+            };
+            drawCharPattern(g_pattern, char_x, y, 8, 12);
+        } else if (c == 'S' || c == 's') {
+            // S más limpia
+            int s_pattern[] = {
+                0,1,1,1,1,1,0,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,0,0,
+                1,0,0,0,0,0,0,0,
+                0,1,1,1,1,0,0,0,
+                0,0,0,0,0,1,0,0,
+                0,0,0,0,0,0,1,0,
+                0,0,0,0,0,0,1,0,
+                0,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                1,0,0,0,0,0,1,0,
+                0,1,1,1,1,1,0,0
+            };
+            drawCharPattern(s_pattern, char_x, y, 8, 12);
+        } else if (c == '!') {
+            // ! más limpia
+            int excl_pattern[] = {
+                0,0,1,1,0,0,0,0,
+                0,0,1,1,0,0,0,0,
+                0,0,1,1,0,0,0,0,
+                0,0,1,1,0,0,0,0,
+                0,0,1,1,0,0,0,0,
+                0,0,1,1,0,0,0,0,
+                0,0,1,1,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,0,0,0,0,0,0,
+                0,0,1,1,0,0,0,0,
+                0,0,1,1,0,0,0,0,
+                0,0,0,0,0,0,0,0
+            };
+            drawCharPattern(excl_pattern, char_x, y, 8, 12);
+        } else if (c == ' ') {
+            // Espacio - no dibujar nada
+        }
     }
 }
 
 void handleInput(void) {
-    char key = getKeyNonBlocking();
-    Paddle* activePaddle = (gameMode == MODE_SINGLE || currentPlayer == 1) ? &paddle1 : &paddle2;
+    char key;
     
-    switch (key) {
-        case 27: // ESC
+    // Flags para detectar múltiples teclas en este frame
+    int p1_left_pressed = 0, p1_right_pressed = 0, p1_up_pressed = 0;
+    int p2_left_pressed = 0, p2_right_pressed = 0, p2_up_pressed = 0;
+    
+    // Sin cooldown para rotación ultra fluida
+    if (p1_rotate_cooldown > 0) p1_rotate_cooldown--;
+    if (p2_rotate_cooldown > 0) p2_rotate_cooldown--;
+    
+    // Procesar TODAS las teclas presionadas en este frame
+    while ((key = getKeyNonBlocking()) != 0) {
+        if (key == 27) {
             gameState = GAME_MENU;
             return;
-            
-        // Controles Jugador 1 (Flechas)
-        case 75: // Flecha IZQUIERDA
-            if (gameMode == MODE_SINGLE || currentPlayer == 1) {
-                paddle1.aim_angle = (paddle1.aim_angle - 15 + 360) % 360;
+        }
+        
+        // Detectar teclas del jugador 1
+        if (key == 75) { // Izquierda
+            p1_left_pressed = 1;
+        }
+        else if (key == 77) { // Derecha
+            p1_right_pressed = 1;
+        }
+        else if (key == 72) { // Arriba
+            p1_up_pressed = 1;
+        }
+        
+        // Detectar teclas del jugador 2
+        if (gameMode == MODE_MULTIPLAYER) {
+            if (key == 'a' || key == 'A') {
+                p2_left_pressed = 1;
             }
-            break;
-            
-        case 77: // Flecha DERECHA
-            if (gameMode == MODE_SINGLE || currentPlayer == 1) {
-                paddle1.aim_angle = (paddle1.aim_angle + 15) % 360;
+            else if (key == 'd' || key == 'D') {
+                p2_right_pressed = 1;
             }
-            break;
-            
-        case 72: // Flecha ARRIBA
-            if (gameMode == MODE_SINGLE || currentPlayer == 1) {
-                int angle_x = cos_table[paddle1.aim_angle / 15];
-                int angle_y = sin_table[paddle1.aim_angle / 15];
-                
-                int new_x = paddle1.x + (angle_x * 8) / 100;
-                int new_y = paddle1.y + (angle_y * 8) / 100;
-                
-                if (new_x >= 0 && new_x + paddle1.width <= SCREEN_WIDTH &&
-                    new_y >= 0 && new_y + paddle1.height <= SCREEN_HEIGHT) {
-                    paddle1.x = new_x;
-                    paddle1.y = new_y;
-                }
+            else if (key == 'w' || key == 'W') {
+                p2_up_pressed = 1;
             }
-            break;
-            
-        // Controles Jugador 2 (WASD) - solo en multijugador
-        case 'a': case 'A': // A - rotar izquierda
-            if (gameMode == MODE_MULTIPLAYER && currentPlayer == 2) {
-                paddle2.aim_angle = (paddle2.aim_angle - 15 + 360) % 360;
-            }
-            break;
-            
-        case 'd': case 'D': // D - rotar derecha
-            if (gameMode == MODE_MULTIPLAYER && currentPlayer == 2) {
-                paddle2.aim_angle = (paddle2.aim_angle + 15) % 360;
-            }
-            break;
-            
-        case 'w': case 'W': // W - mover hacia donde apunta
-            if (gameMode == MODE_MULTIPLAYER && currentPlayer == 2) {
-                int angle_x = cos_table[paddle2.aim_angle / 15];
-                int angle_y = sin_table[paddle2.aim_angle / 15];
-                
-                int new_x = paddle2.x + (angle_x * 8) / 100;
-                int new_y = paddle2.y + (angle_y * 8) / 100;
-                
-                if (new_x >= 0 && new_x + paddle2.width <= SCREEN_WIDTH &&
-                    new_y >= 0 && new_y + paddle2.height <= SCREEN_HEIGHT) {
-                    paddle2.x = new_x;
-                    paddle2.y = new_y;
-                }
-            }
-            break;
-            
-        // Cambiar de jugador en multijugador (Barra espaciadora)
-        case ' ':
-            if (gameMode == MODE_MULTIPLAYER) {
-                currentPlayer = (currentPlayer == 1) ? 2 : 1;
-                playBeep();
-            }
-            break;
+        }
+    }
+    
+    // Procesar rotación RÁPIDA del jugador 1 (independiente del movimiento)
+    if (p1_left_pressed && p1_rotate_cooldown == 0) {
+        paddle1.aim_angle = (paddle1.aim_angle - 8 + 360) % 360; // Rotación más rápida
+        p1_rotate_cooldown = 0; // Sin cooldown para fluidez máxima
+    }
+    if (p1_right_pressed && p1_rotate_cooldown == 0) {
+        paddle1.aim_angle = (paddle1.aim_angle + 8) % 360; // Rotación más rápida
+        p1_rotate_cooldown = 0;
+    }
+    
+    // Control de movimiento INMEDIATO para jugador 1
+    if (p1_up_pressed) {
+        p1_moving = 1; // Activar movimiento
+        p1_forward_key_held = 1; // Marcar como presionada
+    } else {
+        p1_moving = 0; // PARAR INMEDIATAMENTE cuando se suelta
+        p1_forward_key_held = 0; // Resetear flag
+    }
+    
+    // Procesar rotación RÁPIDA del jugador 2 (independiente del movimiento)
+    if (gameMode == MODE_MULTIPLAYER) {
+        if (p2_left_pressed && p2_rotate_cooldown == 0) {
+            paddle2.aim_angle = (paddle2.aim_angle - 8 + 360) % 360; // Rotación más rápida
+            p2_rotate_cooldown = 0;
+        }
+        if (p2_right_pressed && p2_rotate_cooldown == 0) {
+            paddle2.aim_angle = (paddle2.aim_angle + 8) % 360; // Rotación más rápida
+            p2_rotate_cooldown = 0;
+        }
+        
+        // Control de movimiento INMEDIATO para jugador 2
+        if (p2_up_pressed) {
+            p2_moving = 1; // Activar movimiento
+            p2_forward_key_held = 1; // Marcar como presionada
+        } else {
+            p2_moving = 0; // PARAR INMEDIATAMENTE cuando se suelta
+            p2_forward_key_held = 0; // Resetear flag
+        }
+    }
+}
+
+void processMovement(void) {
+    // Movimiento continuo y fluido para jugador 1
+    if (p1_moving > 0) {
+        // Usar las nuevas tablas trigonométricas - ajustado para ángulos de 8 grados
+        int angle_index = (paddle1.aim_angle / 10) % 36; // Aproximar a la tabla más cercana
+        int angle_x = cos_table_fine[angle_index];
+        int angle_y = sin_table_fine[angle_index];
+        
+        // Velocidad fluida y suave
+        int new_x = paddle1.x + (angle_x * 10) / 100; // Velocidad optimizada para fluidez
+        int new_y = paddle1.y + (angle_y * 10) / 100;
+        
+        if (new_x >= 0 && new_x + paddle1.width <= SCREEN_WIDTH &&
+            new_y >= 45 && new_y + paddle1.height <= SCREEN_HEIGHT) {
+            paddle1.x = new_x;
+            paddle1.y = new_y;
+        }
+    }
+    
+    // Movimiento continuo y fluido para jugador 2
+    if (gameMode == MODE_MULTIPLAYER && p2_moving > 0) {
+        // Usar las nuevas tablas trigonométricas - ajustado para ángulos de 8 grados
+        int angle_index = (paddle2.aim_angle / 10) % 36; // Aproximar a la tabla más cercana
+        int angle_x = cos_table_fine[angle_index];
+        int angle_y = sin_table_fine[angle_index];
+        
+        // Velocidad fluida y suave
+        int new_x = paddle2.x + (angle_x * 10) / 100;
+        int new_y = paddle2.y + (angle_y * 10) / 100;
+        
+        if (new_x >= 0 && new_x + paddle2.width <= SCREEN_WIDTH &&
+            new_y >= 45 && new_y + paddle2.height <= SCREEN_HEIGHT) {
+            paddle2.x = new_x;
+            paddle2.y = new_y;
+        }
     }
 }
 
@@ -350,15 +734,15 @@ void updateGame(void) {
         collision_cooldown--;
     }
     
-    // Comprobar colisión con paddle 1
+    // Detectar colisiones con paddle 1
     int paddle1_center_x = paddle1.x + paddle1.width/2;
     int paddle1_center_y = paddle1.y + paddle1.height/2;
     int dx1 = ball.x - paddle1_center_x;
     int dy1 = ball.y - paddle1_center_y;
     int distance1_sq = dx1*dx1 + dy1*dy1;
-    int collision_radius = (ball.size + paddle1.width/2 - 8);
+    int collision_radius = (ball.size + paddle1.width/2 - 3);
     
-    // Comprobar colisión con paddle 2 (si existe)
+    // Detectar colisiones con paddle 2
     int distance2_sq = 999999;
     int dx2 = 0, dy2 = 0;
     if (gameMode == MODE_MULTIPLAYER) {
@@ -369,12 +753,13 @@ void updateGame(void) {
         distance2_sq = dx2*dx2 + dy2*dy2;
     }
     
-    int far_distance = (collision_radius + 25) * (collision_radius + 25);
+    // Verificar si está lejos para resetear el cooldown
+    int far_distance = (collision_radius + 40) * (collision_radius + 40);
     if (distance1_sq > far_distance && distance2_sq > far_distance) {
         was_far = 1;
     }
     
-    // Calcular velocidades de paddles
+    // Calcular velocidad de los paddles
     int paddle1_speed = 0, paddle2_speed = 0;
     if (last_paddle1_x != -1) {
         int dx = paddle1.x - last_paddle1_x;
@@ -387,63 +772,68 @@ void updateGame(void) {
         paddle2_speed = isqrt(dx*dx + dy*dy);
     }
     
-    // Verificar colisión con paddle 1
+    // Colisión con paddle 1
     if (distance1_sq < (collision_radius * collision_radius) && 
         collision_cooldown == 0 && was_far == 1 && paddle1_speed > 0) {
         
         int dist = isqrt(distance1_sq);
         if (dist > 1) {
-            int base_impact = 150;
-            int speed_multiplier = paddle1_speed * 80;
+            // Física ajustada para la nueva mecánica
+            int base_impact = 300; // Más impulso inicial
+            int speed_multiplier = paddle1_speed * 100;
             int final_speed = base_impact + speed_multiplier;
             
-            if (final_speed < 150) final_speed = 150;
-            if (final_speed > 1200) final_speed = 1200;
+            if (final_speed < 300) final_speed = 300;
+            if (final_speed > 2000) final_speed = 2000; // Límite más alto
             
             ball.vx = (dx1 * final_speed) / dist;
             ball.vy = (dy1 * final_speed) / dist;
             
             hits++;
+            playBeep(); // Sonido al golpear
             
-            int separation = collision_radius + 15;
+            // Separar la pelota del paddle
+            int separation = collision_radius + 25;
             ball.x = paddle1_center_x + (dx1 * separation) / dist;
             ball.y = paddle1_center_y + (dy1 * separation) / dist;
             
-            collision_cooldown = 30;
+            collision_cooldown = 20;
             was_far = 0;
         }
     }
     
-    // Verificar colisión con paddle 2 (modo multijugador)
+    // Colisión con paddle 2
     if (gameMode == MODE_MULTIPLAYER && 
         distance2_sq < (collision_radius * collision_radius) && 
         collision_cooldown == 0 && was_far == 1 && paddle2_speed > 0) {
         
         int dist = isqrt(distance2_sq);
         if (dist > 1) {
-            int base_impact = 150;
-            int speed_multiplier = paddle2_speed * 80;
+            int base_impact = 300; // Más impulso inicial
+            int speed_multiplier = paddle2_speed * 100;
             int final_speed = base_impact + speed_multiplier;
             
-            if (final_speed < 150) final_speed = 150;
-            if (final_speed > 1200) final_speed = 1200;
+            if (final_speed < 300) final_speed = 300;
+            if (final_speed > 2000) final_speed = 2000; // Límite más alto
             
             ball.vx = (dx2 * final_speed) / dist;
             ball.vy = (dy2 * final_speed) / dist;
             
             hits++;
+            playBeep();
             
             int paddle2_center_x = paddle2.x + paddle2.width/2;
             int paddle2_center_y = paddle2.y + paddle2.height/2;
-            int separation = collision_radius + 15;
+            int separation = collision_radius + 25;
             ball.x = paddle2_center_x + (dx2 * separation) / dist;
             ball.y = paddle2_center_y + (dy2 * separation) / dist;
             
-            collision_cooldown = 30;
+            collision_cooldown = 20;
             was_far = 0;
         }
     }
     
+    // Actualizar posiciones anteriores
     last_paddle1_x = paddle1.x;
     last_paddle1_y = paddle1.y;
     if (gameMode == MODE_MULTIPLAYER) {
@@ -451,43 +841,49 @@ void updateGame(void) {
         last_paddle2_y = paddle2.y;
     }
     
-    // Física de la pelota
-    ball.x += ball.vx / 100;
+    // Física de la pelota mejorada - más fluida y con fricción optimizada
+    ball.x += ball.vx / 100; // Movimiento más fluido
     ball.y += ball.vy / 100;
     
-    ball.vx = (ball.vx * 995) / 1000;
-    ball.vy = (ball.vy * 995) / 1000;
+    // Fricción optimizada para fluidez
+    ball.vx = (ball.vx * 996) / 1000; // Fricción balanceada
+    ball.vy = (ball.vy * 996) / 1000;
     
-    if (abs(ball.vx) < 5 && abs(ball.vy) < 5) {
+    // Parar cuando la velocidad es baja
+    if (abs(ball.vx) < 6 && abs(ball.vy) < 6) { // Umbral optimizado
         ball.vx = 0;
         ball.vy = 0;
     }
     
-    // Rebotes en paredes
+    // Rebotes en las paredes con física ajustada
     if (ball.x - ball.size <= 0) {
         ball.x = ball.size;
-        ball.vx = -ball.vx * 80 / 100;
+        ball.vx = -ball.vx * 87 / 100; // Conservación de energía optimizada
+        playSound(400, 60); // Sonido más corto
     }
     if (ball.x + ball.size >= SCREEN_WIDTH) {
         ball.x = SCREEN_WIDTH - ball.size;
-        ball.vx = -ball.vx * 80 / 100;
+        ball.vx = -ball.vx * 87 / 100;
+        playSound(400, 60);
     }
-    if (ball.y - ball.size <= 40) { // Dejar espacio para UI
-        ball.y = 40 + ball.size;
-        ball.vy = -ball.vy * 80 / 100;
+    if (ball.y - ball.size <= 45) { // Evitar UI
+        ball.y = 45 + ball.size;
+        ball.vy = -ball.vy * 87 / 100;
+        playSound(400, 60);
     }
     if (ball.y + ball.size >= SCREEN_HEIGHT) {
         ball.y = SCREEN_HEIGHT - ball.size;
-        ball.vy = -ball.vy * 80 / 100;
+        ball.vy = -ball.vy * 87 / 100;
+        playSound(400, 60);
     }
     
-    // Verificar si la pelota entró en el hoyo
+    // Verificar si la pelota entra en el hoyo
     int dx = ball.x - hole.x;
     int dy = ball.y - hole.y;
     int distance_sq = dx*dx + dy*dy;
-    int min_distance_sq = (hole.size - ball.size) * (hole.size - ball.size);
+    int hole_radius = hole.size - ball.size;
     
-    if (distance_sq < min_distance_sq) {
+    if (distance_sq < (hole_radius * hole_radius) && hole_radius > 0) {
         if (currentLevel < maxLevels) {
             currentLevel++;
             gameState = GAME_LEVEL_COMPLETE;
@@ -503,18 +899,20 @@ void showLevelComplete(void) {
     
     fillScreen(COLOR_YELLOW);
     
-    drawRect(200, 300, 600, 150, COLOR_BLUE);
-    drawRect(210, 310, 580, 130, COLOR_WHITE);
+    // Caja principal más grande para acomodar el texto
+    drawRect(150, 250, 700, 200, COLOR_BLUE);
+    drawRect(160, 260, 680, 180, COLOR_WHITE);
     
-    // Mostrar "NIVEL COMPLETO"
-    drawRect(300, 350, 400, 50, COLOR_BLACK);
+    // Mensaje de nivel completado centrado y prolijo
+    drawSimpleText("NIVEL COMPLETADO!", 280, 300);
     
-    // Mostrar número de golpes
-    drawNumber(hits, 450, 280);
+    // Información de golpes centrada
+    drawSimpleText("GOLPES: ", 380, 350);
+    drawNumber(hits, 480, 350);
     
-    for (volatile int i = 0; i < 10000000; i++);
+    // Pausa MUCHO más larga para poder leer tranquilo
+    for (volatile int i = 0; i < 50000000; i++); 
     
-    // Inicializar siguiente nivel
     resetBall();
     placeHoleRandomly();
     hits = 0;
@@ -527,17 +925,19 @@ void showHoleMessage(void) {
     
     fillScreen(COLOR_YELLOW);
     
-    drawRect(200, 300, 600, 150, COLOR_BLUE);
-    drawRect(210, 310, 580, 130, COLOR_WHITE);
+    // Caja principal más grande para acomodar el texto
+    drawRect(150, 250, 700, 200, COLOR_BLUE);
+    drawRect(160, 260, 680, 180, COLOR_WHITE);
     
-    // Dibujar "¡COMPLETADO!"
-    int start_x = 250;
-    int start_y = 350;
-    drawRect(start_x, start_y, 500, 50, COLOR_BLACK);
+    // Mensaje de juego completado centrado y prolijo
+    drawSimpleText("JUEGO COMPLETADO!", 270, 300);
     
-    drawNumber(hits, 450, 280);
+    // Información de golpes totales centrada
+    drawSimpleText("GOLPES TOTALES: ", 290, 350);
+    drawNumber(hits, 500, 350);
     
-    for (volatile int i = 0; i < 15000000; i++);
+    // Pausa más larga para el final del juego
+    for (volatile int i = 0; i < 60000000; i++); 
     
     fillScreen(COLOR_GREEN);
 }
@@ -577,6 +977,7 @@ void drawNumber(int number, int x, int y) {
         }
         numStr[i] = '\0';
         
+        // Invertir string
         for (int j = 0; j < i/2; j++) {
             char temp = numStr[j];
             numStr[j] = numStr[i-1-j];
@@ -584,28 +985,50 @@ void drawNumber(int number, int x, int y) {
         }
     }
     
+    // Dibujar cada dígito con patrones más prolijos y compactos
     for (int digit = 0; digit < strlen(numStr); digit++) {
         char c = numStr[digit];
-        int digit_x = x + (digit * 20);
+        int digit_x = x + (digit * 10); // Más compacto para alinearse con el texto
         
-        int patterns[10][15] = {
-            {1,1,1,1,0,1,1,0,1,1,0,1,1,1,1}, // 0
-            {0,1,0,0,1,0,0,1,0,0,1,0,0,1,0}, // 1
-            {1,1,1,0,0,1,1,1,1,1,0,0,1,1,1}, // 2
-            {1,1,1,0,0,1,1,1,1,0,0,1,1,1,1}, // 3
-            {1,0,1,1,0,1,1,1,1,0,0,1,0,0,1}, // 4
-            {1,1,1,1,0,0,1,1,1,0,0,1,1,1,1}, // 5
-            {1,1,1,1,0,0,1,1,1,1,0,1,1,1,1}, // 6
-            {1,1,1,0,0,1,0,0,1,0,0,1,0,0,1}, // 7
-            {1,1,1,1,0,1,1,1,1,1,0,1,1,1,1}, // 8
-            {1,1,1,1,0,1,1,1,1,0,0,1,1,1,1}  // 9
+        // Patrones de números 7x12 más prolijos (igual altura que el texto)
+        int patterns[10][84] = {
+            // 0
+            {0,1,1,1,1,1,0, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1,
+             1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 0,1,1,1,1,1,0},
+            // 1
+            {0,0,1,1,0,0,0, 0,1,1,1,0,0,0, 1,1,1,1,0,0,0, 0,0,1,1,0,0,0, 0,0,1,1,0,0,0, 0,0,1,1,0,0,0,
+             0,0,1,1,0,0,0, 0,0,1,1,0,0,0, 0,0,1,1,0,0,0, 0,0,1,1,0,0,0, 0,0,1,1,0,0,0, 1,1,1,1,1,1,0},
+            // 2
+            {0,1,1,1,1,1,0, 1,1,0,0,0,1,1, 0,0,0,0,0,1,1, 0,0,0,0,0,1,1, 0,0,0,0,1,1,0, 0,0,0,1,1,0,0,
+             0,0,1,1,0,0,0, 0,1,1,0,0,0,0, 1,1,0,0,0,0,0, 1,1,0,0,0,0,0, 1,1,0,0,0,1,1, 1,1,1,1,1,1,1},
+            // 3
+            {0,1,1,1,1,1,0, 1,1,0,0,0,1,1, 0,0,0,0,0,1,1, 0,0,0,0,0,1,1, 0,0,1,1,1,1,0, 0,0,0,0,0,1,1,
+             0,0,0,0,0,1,1, 0,0,0,0,0,1,1, 0,0,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 0,1,1,1,1,1,0},
+            // 4
+            {1,1,0,0,1,1,0, 1,1,0,0,1,1,0, 1,1,0,0,1,1,0, 1,1,0,0,1,1,0, 1,1,0,0,1,1,0, 1,1,1,1,1,1,1,
+             1,1,1,1,1,1,1, 0,0,0,0,1,1,0, 0,0,0,0,1,1,0, 0,0,0,0,1,1,0, 0,0,0,0,1,1,0, 0,0,0,0,1,1,0},
+            // 5
+            {1,1,1,1,1,1,1, 1,1,0,0,0,0,0, 1,1,0,0,0,0,0, 1,1,0,0,0,0,0, 1,1,1,1,1,1,0, 0,0,0,0,0,1,1,
+             0,0,0,0,0,1,1, 0,0,0,0,0,1,1, 0,0,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 0,1,1,1,1,1,0},
+            // 6
+            {0,1,1,1,1,1,0, 1,1,0,0,0,1,1, 1,1,0,0,0,0,0, 1,1,0,0,0,0,0, 1,1,1,1,1,1,0, 1,1,0,0,0,1,1,
+             1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 0,1,1,1,1,1,0},
+            // 7
+            {1,1,1,1,1,1,1, 0,0,0,0,0,1,1, 0,0,0,0,1,1,0, 0,0,0,0,1,1,0, 0,0,0,1,1,0,0, 0,0,0,1,1,0,0,
+             0,0,1,1,0,0,0, 0,0,1,1,0,0,0, 0,1,1,0,0,0,0, 0,1,1,0,0,0,0, 1,1,0,0,0,0,0, 1,1,0,0,0,0,0},
+            // 8
+            {0,1,1,1,1,1,0, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 0,1,1,1,1,1,0, 1,1,0,0,0,1,1,
+             1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 0,1,1,1,1,1,0},
+            // 9
+            {0,1,1,1,1,1,0, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 0,1,1,1,1,1,1,
+             0,0,0,0,0,1,1, 0,0,0,0,0,1,1, 0,0,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 0,1,1,1,1,1,0}
         };
         
         int num = c - '0';
-        for (int row = 0; row < 5; row++) {
-            for (int col = 0; col < 3; col++) {
-                if (patterns[num][row * 3 + col]) {
-                    drawRect(digit_x + col * 3, y + row * 3, 2, 2, COLOR_BLACK);
+        for (int row = 0; row < 12; row++) {
+            for (int col = 0; col < 7; col++) {
+                if (patterns[num][row * 7 + col]) {
+                    putPixel(COLOR_BLACK, digit_x + col, y + row);
                 }
             }
         }
@@ -616,17 +1039,22 @@ void drawAimArrow(Paddle* paddle) {
     int paddle_center_x = paddle->x + paddle->width/2;
     int paddle_center_y = paddle->y + paddle->height/2;
     
-    int angle_index = paddle->aim_angle / 15;
-    int dir_x = cos_table[angle_index];
-    int dir_y = sin_table[angle_index];
+    // Usar las nuevas tablas para flechas más precisas
+    int angle_index = (paddle->aim_angle / 10) % 36;
+    int dir_x = cos_table_fine[angle_index];
+    int dir_y = sin_table_fine[angle_index];
     
-    int tip_x = paddle_center_x + (dir_x * 25) / 100;
-    int tip_y = paddle_center_y + (dir_y * 25) / 100;
+    // Flecha con longitud optimizada para visibilidad
+    int arrow_length = 35; // Longitud perfecta
+    int tip_x = paddle_center_x + (dir_x * arrow_length) / 100;
+    int tip_y = paddle_center_y + (dir_y * arrow_length) / 100;
     
-    for (int t = 0; t < 25; t += 2) {
+    // Línea principal más suave y visible
+    for (int t = 0; t < arrow_length; t += 1) {
         int line_x = paddle_center_x + (dir_x * t) / 100;
         int line_y = paddle_center_y + (dir_y * t) / 100;
         
+        // Línea más suave con mejor antialiasing
         for (int dx = -1; dx <= 1; dx++) {
             for (int dy = -1; dy <= 1; dy++) {
                 putPixel(COLOR_RED, line_x + dx, line_y + dy);
@@ -634,16 +1062,20 @@ void drawAimArrow(Paddle* paddle) {
         }
     }
     
+    // Punta de flecha bien proporcionada
     int perp_x = -dir_y;
     int perp_y = dir_x;
     
-    int head1_x = tip_x - (dir_x * 8) / 100 + (perp_x * 6) / 100;
-    int head1_y = tip_y - (dir_y * 8) / 100 + (perp_y * 6) / 100;
-    int head2_x = tip_x - (dir_x * 8) / 100 - (perp_x * 6) / 100;
-    int head2_y = tip_y - (dir_y * 8) / 100 - (perp_y * 6) / 100;
+    int head1_x = tip_x - (dir_x * 10) / 100 + (perp_x * 7) / 100; // Proporcionada
+    int head1_y = tip_y - (dir_y * 10) / 100 + (perp_y * 7) / 100;
+    int head2_x = tip_x - (dir_x * 10) / 100 - (perp_x * 7) / 100;
+    int head2_y = tip_y - (dir_y * 10) / 100 - (perp_y * 7) / 100;
     
     drawLine(tip_x, tip_y, head1_x, head1_y, COLOR_RED);
     drawLine(tip_x, tip_y, head2_x, head2_y, COLOR_RED);
+    
+    // Círculo en la punta optimizado
+    drawCircle(tip_x, tip_y, 4, COLOR_RED); // Tamaño perfecto
 }
 
 void drawLine(int x1, int y1, int x2, int y2, uint32_t color) {
@@ -656,7 +1088,12 @@ void drawLine(int x1, int y1, int x2, int y2, uint32_t color) {
     int x = x1, y = y1;
     
     while (1) {
-        putPixel(color, x, y);
+        // Línea más gruesa
+        for (int i = -1; i <= 1; i++) {
+            for (int j = -1; j <= 1; j++) {
+                putPixel(color, x + i, y + j);
+            }
+        }
         
         if (x == x2 && y == y2) break;
         

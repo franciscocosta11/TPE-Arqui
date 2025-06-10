@@ -130,4 +130,16 @@ void vdFillScreen(uint32_t color);
  */
 int strcmp(const char *s1, const char *s2);
 
+/**
+ * @brief Obtiene el ancho actual de la pantalla
+ * @return Ancho en píxeles
+ */
+uint16_t vdGetScreenWidth(void);
+
+/**
+ * @brief Obtiene la altura actual de la pantalla
+ * @return Altura en píxeles  
+ */
+uint16_t vdGetScreenHeight(void);
+
 #endif

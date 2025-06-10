@@ -121,5 +121,11 @@ void syscallDispatcher(uint64_t rax, uint64_t rsi, uint64_t rdx, uint64_t rcx) {
         case 15: // SYS_SOUND_OFF
             soundOff();
             break;
+            
+        case 16: // SYS_GET_SCREEN_WIDTH
+            return vdGetScreenWidth();
+    
+        case 17: // SYS_GET_SCREEN_HEIGHT
+            return vdGetScreenHeight();
     }
 }

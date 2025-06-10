@@ -234,18 +234,9 @@ void vdSetFontSize(uint8_t size) {
     }
 }
 
-// AGREGADO: Función para cambiar color del texto (con debug)
 void vdSetColor(uint32_t fgColor) {
     defaultFgColor = fgColor;
-    
-    // DEBUG: Imprimir confirmación (temporal)
-    // Puedes quitar esto después de que funcione
-    if (fgColor == 0xFF0000) {
-        // Es rojo, debug sin usar el color nuevo todavía
-    }
 }
-
-// Agregar estas funciones a videoDriver.c
 
 // Función para llenar toda la pantalla con un color
 void vdFillScreen(uint32_t color) {
@@ -254,4 +245,13 @@ void vdFillScreen(uint32_t color) {
             putPixel(color, x, y);
         }
     }
+}
+
+uint16_t vdGetScreenWidth(void) {
+    return VBE_mode_info->width;
+}
+
+
+uint16_t vdGetScreenHeight(void) {
+    return VBE_mode_info->height;
 }

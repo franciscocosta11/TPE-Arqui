@@ -338,3 +338,11 @@ int scanf(const char *format, ...) {
 void soundOff(void) {
     syscall(15, 0, 0, 0);
 }
+
+uint16_t getScreenWidth(void) {
+    return (uint16_t)syscall(SYS_GET_SCREEN_WIDTH, 0, 0, 0);
+}
+
+uint16_t getScreenHeight(void) {
+    return (uint16_t)syscall(SYS_GET_SCREEN_HEIGHT, 0, 0, 0);
+}
