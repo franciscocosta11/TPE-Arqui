@@ -8,9 +8,10 @@
 
 typedef struct {
     uint64_t rax, rbx, rcx, rdx;
-    uint64_t rsi, rdi, r8, r9;
-    uint64_t r10, r11, r12, r13;
-    uint64_t r14, r15;
+    uint64_t rsi, rdi, rsp, rbp;  
+    uint64_t r8, r9, r10, r11;
+    uint64_t r12, r13, r14, r15;
+    uint64_t rip, rflags;         
 } registers_t;
 
 // Declaración de handlers específicos
@@ -18,15 +19,14 @@ static void zero_division(registers_t *regs);
 static void invalid_opcode(registers_t *regs);
 
 void exceptionDispatcher(uint64_t exception, uint64_t *stack_frame) {
-    // Convertir el stack frame a nuestra estructura de registros
+
     registers_t regs;
     regs.rax = stack_frame[0];
     regs.rbx = stack_frame[1]; 
     regs.rcx = stack_frame[2];
     regs.rdx = stack_frame[3];
-    //
+    regs.rsi = stack_frame[4];
     regs.rdi = stack_frame[5];
-    regs.rsi = stack_frame[6];
     regs.r8 = stack_frame[7];
     regs.r9 = stack_frame[8];
     regs.r10 = stack_frame[9];
@@ -35,6 +35,10 @@ void exceptionDispatcher(uint64_t exception, uint64_t *stack_frame) {
     regs.r13 = stack_frame[12];
     regs.r14 = stack_frame[13];
     regs.r15 = stack_frame[14];
+    regs.rsp = stack_frame[15];     // Stack pointer
+    regs.rbp = stack_frame[16];     // Base pointer  
+    regs.rip = stack_frame[17];     // Instruction pointer
+    regs.rflags = stack_frame[18];
 
     switch (exception) {
         case ZERO_EXCEPTION_ID:
@@ -63,23 +67,24 @@ static void print_hex(uint64_t value) {
 }
 
 static void print_registers(registers_t *r) {
-    // Lista de nombres de registros y sus valores correspondientes
     const char *reg_names[] = {
         " RAX: 0x", " RBX: 0x", " RCX: 0x", " RDX: 0x",
-        " RSI: 0x", " RDI: 0x", " R8 : 0x", " R9 : 0x",
-        " R10: 0x", " R11: 0x", " R12: 0x", " R13: 0x",
-        " R14: 0x", " R15: 0x"
+        " RSI: 0x", " RDI: 0x", " RSP: 0x", " RBP: 0x",  
+        " R8 : 0x", " R9 : 0x", " R10: 0x", " R11: 0x",
+        " R12: 0x", " R13: 0x", " R14: 0x", " R15: 0x",
+        " RIP: 0x", "RFLAGS: 0x"                          
     };
     
     uint64_t *reg_values[] = {
         &r->rax, &r->rbx, &r->rcx, &r->rdx,
-        &r->rsi, &r->rdi, &r->r8, &r->r9,
-        &r->r10, &r->r11, &r->r12, &r->r13,
-        &r->r14, &r->r15
+        &r->rsi, &r->rdi, &r->rsp, &r->rbp,              
+        &r->r8, &r->r9, &r->r10, &r->r11,
+        &r->r12, &r->r13, &r->r14, &r->r15,
+        &r->rip, &r->rflags                              
     };
     
-    // Imprimir cada registro
-    for (int i = 0; i < 14; i++) {
+   
+    for (int i = 0; i < 18; i++) {                       
         vdPrint(reg_names[i]);
         print_hex(*reg_values[i]);
         vdPrint("\n");

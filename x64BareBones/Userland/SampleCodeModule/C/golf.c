@@ -1,6 +1,7 @@
 #include "./../include/libc.h"
 #include "./../include/golf.h"
 
+
 int SCREEN_HEIGHT = 768;
 int SCREEN_WIDTH = 1024;
 
@@ -37,14 +38,6 @@ static int p2_rotate_cooldown = 0;
 static int p1_forward_key_held = 0;
 static int p2_forward_key_held = 0;
 
-// Declaraciones de funciones
-void drawCharPattern(int* pattern, int x, int y, int width, int height);
-void drawSimpleText(const char* text, int x, int y);
-void handleInput(void);
-void processMovement(void);
-void updateGame(void);
-void drawGame(void);
-void drawUI(void);
 
 void startGolfGame(void) {
     clearScreen();
@@ -76,16 +69,16 @@ void startGolfGame(void) {
 }
 
 // Función auxiliar para dibujar patrones de caracteres de forma eficiente
-void drawCharPattern(int* pattern, int x, int y, int width, int height) {
-    for (int row = 0; row < height; row++) {
-        for (int col = 0; col < width; col++) {
-            if (pattern[row * width + col]) {
+void drawCharPattern(const unsigned char* pattern, int x, int y) {
+    for (int row = 0; row < 12; row++) {
+        unsigned char byte = pattern[row];
+        for (int col = 0; col < 8; col++) {
+            if (byte & (0x80 >> col)) {  // Bit más significativo primero
                 putPixel(COLOR_BLACK, x + col, y + row);
             }
         }
     }
 }
-
 void showMenu(void) {
     static int menuInitialized = 0;
     
@@ -329,296 +322,38 @@ void drawGame(void) {
 // UI sin fondo amarillo - solo recuadros flotantes
 void drawUI(void) {
     // Calcular posiciones proporcionales a la pantalla
-    int left_box_width = SCREEN_WIDTH / 8;      // ~12.5% del ancho
-    int right_box_width = SCREEN_WIDTH / 5;     // ~20% del ancho
+    int left_box_width = 120;   // Ancho fijo para "NIVEL: X"
+    int right_box_width = 140;  // Ancho fijo para "GOLPES: XX"
     
-    // Caja del nivel (izquierda) - proporcional
-    drawRect(10, 5, left_box_width, 35, COLOR_BLACK);
-    drawRect(12, 7, left_box_width - 4, 31, COLOR_WHITE);
+    // Caja del nivel (izquierda)
+    drawRect(10, 5, left_box_width, 25, COLOR_BLACK);
+    drawRect(12, 7, left_box_width - 4, 21, COLOR_WHITE);
     
-    // Texto "NIVEL:" ajustado al tamaño de caja
-    drawSimpleText("NIVEL: ", 18, 15);
-    drawNumber(currentLevel, 18 + 77, 15); // Posición relativa al texto
+    // Texto centrado en la caja
+    int nivel_text_width = getTextWidth("NIVEL: ") + getTextWidth("9"); // Máximo 1 dígito
+    int nivel_x = 12 + (left_box_width - 4 - nivel_text_width) / 2;
+    drawSimpleText("NIVEL: ", nivel_x, 12);
+    drawNumber(currentLevel, nivel_x + getTextWidth("NIVEL: "), 12);
     
-    // Caja de golpes (derecha) - proporcional
+    // Caja de golpes (derecha)
     int right_box_x = SCREEN_WIDTH - right_box_width - 10;
-    drawRect(right_box_x, 5, right_box_width, 35, COLOR_BLACK);
-    drawRect(right_box_x + 2, 7, right_box_width - 4, 31, COLOR_WHITE);
+    drawRect(right_box_x, 5, right_box_width, 25, COLOR_BLACK);
+    drawRect(right_box_x + 2, 7, right_box_width - 4, 21, COLOR_WHITE);
     
-    // Texto "GOLPES:" ajustado al tamaño de caja
-    drawSimpleText("GOLPES: ", right_box_x + 8, 15);
-    drawNumber(hits, right_box_x + 8 + 88, 15); // Posición relativa al texto
+    // Texto centrado en la caja
+    int golpes_text_width = getTextWidth("GOLPES: ") + getTextWidth("999"); // Máximo 3 dígitos
+    int golpes_x = right_box_x + 2 + (right_box_width - 4 - golpes_text_width) / 2;
+    drawSimpleText("GOLPES: ", golpes_x, 12);
+    drawNumber(hits, golpes_x + getTextWidth("GOLPES: "), 12);
 }
 
 // Función para dibujar texto
 void drawSimpleText(const char* text, int x, int y) {
     for (int i = 0; text[i] != '\0'; i++) {
-        char c = text[i];
-        int char_x = x + (i * 10); // Espaciado entre caracteres
-        
-        // Patrones 8x12 
-        if (c == 'N') {
-            int n_pattern[] = {
-                1,0,0,0,0,0,1,0,
-                1,1,0,0,0,0,1,0,
-                1,1,0,0,0,0,1,0,
-                1,0,1,0,0,0,1,0,
-                1,0,1,0,0,0,1,0,
-                1,0,0,1,0,0,1,0,
-                1,0,0,1,0,0,1,0,
-                1,0,0,0,1,0,1,0,
-                1,0,0,0,1,0,1,0,
-                1,0,0,0,0,1,1,0,
-                1,0,0,0,0,1,1,0,
-                1,0,0,0,0,0,1,0
-            };
-            drawCharPattern(n_pattern, char_x, y, 8, 12);
-        } else if (c == 'I' || c == 'i') {
-            int i_pattern[] = {
-                0,1,1,1,1,1,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,1,1,1,1,1,0,0
-            };
-            drawCharPattern(i_pattern, char_x, y, 8, 12);
-        } else if (c == 'V' || c == 'v') {
-            int v_pattern[] = {
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                0,1,0,0,0,1,0,0,
-                0,1,0,0,0,1,0,0,
-                0,1,0,0,0,1,0,0,
-                0,0,1,0,1,0,0,0,
-                0,0,1,0,1,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,0,0,0,0,0
-            };
-            drawCharPattern(v_pattern, char_x, y, 8, 12);
-        } else if (c == 'E' || c == 'e') {
-            int e_pattern[] = {
-                1,1,1,1,1,1,1,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,1,1,1,1,1,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,1,1,1,1,1,1,0
-            };
-            drawCharPattern(e_pattern, char_x, y, 8, 12);
-        } else if (c == 'L' || c == 'l') {
-            int l_pattern[] = {
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,1,1,1,1,1,1,0
-            };
-            drawCharPattern(l_pattern, char_x, y, 8, 12);
-        } else if (c == ':') {
-            int colon_pattern[] = {
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,1,1,0,0,0,0,
-                0,0,1,1,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,1,1,0,0,0,0,
-                0,0,1,1,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0
-            };
-            drawCharPattern(colon_pattern, char_x, y, 8, 12);
-        } else if (c == 'C' || c == 'c') {
-
-            int c_pattern[] = {
-                0,1,1,1,1,1,0,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,1,0,
-                0,1,1,1,1,1,0,0
-            };
-            drawCharPattern(c_pattern, char_x, y, 8, 12);
-        } else if (c == 'O' || c == 'o') {
-            int o_pattern[] = {
-                0,1,1,1,1,1,0,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                0,1,1,1,1,1,0,0
-            };
-            drawCharPattern(o_pattern, char_x, y, 8, 12);
-        } else if (c == 'M' || c == 'm') {
-            int m_pattern[] = {
-                1,0,0,0,0,0,1,0,
-                1,1,0,0,0,1,1,0,
-                1,1,0,0,0,1,1,0,
-                1,0,1,0,1,0,1,0,
-                1,0,1,0,1,0,1,0,
-                1,0,0,1,0,0,1,0,
-                1,0,0,1,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0
-            };
-            drawCharPattern(m_pattern, char_x, y, 8, 12);
-        } else if (c == 'P' || c == 'p') {
-            int p_pattern[] = {
-                1,1,1,1,1,1,0,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,1,1,1,1,1,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0
-            };
-            drawCharPattern(p_pattern, char_x, y, 8, 12);
-        } else if (c == 'T' || c == 't') {
-            int t_pattern[] = {
-                1,1,1,1,1,1,1,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0,
-                0,0,0,1,0,0,0,0
-            };
-            drawCharPattern(t_pattern, char_x, y, 8, 12);
-        } else if (c == 'A' || c == 'a') {
-            int a_pattern[] = {
-                0,0,1,1,0,0,0,0,
-                0,1,0,0,1,0,0,0,
-                0,1,0,0,1,0,0,0,
-                1,0,0,0,0,1,0,0,
-                1,0,0,0,0,1,0,0,
-                1,0,0,0,0,1,0,0,
-                1,1,1,1,1,1,0,0,
-                1,0,0,0,0,1,0,0,
-                1,0,0,0,0,1,0,0,
-                1,0,0,0,0,1,0,0,
-                1,0,0,0,0,1,0,0,
-                1,0,0,0,0,1,0,0
-            };
-            drawCharPattern(a_pattern, char_x, y, 8, 12);
-        } else if (c == 'D' || c == 'd') {
-            int d_pattern[] = {
-                1,1,1,1,1,0,0,0,
-                1,0,0,0,0,1,0,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,1,0,0,
-                1,1,1,1,1,0,0,0
-            };
-            drawCharPattern(d_pattern, char_x, y, 8, 12);
-        } else if (c == 'G' || c == 'g') {
-            int g_pattern[] = {
-                0,1,1,1,1,1,0,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,1,1,1,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                0,1,1,1,1,1,0,0
-            };
-            drawCharPattern(g_pattern, char_x, y, 8, 12);
-        } else if (c == 'S' || c == 's') {
-            int s_pattern[] = {
-                0,1,1,1,1,1,0,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,0,0,
-                1,0,0,0,0,0,0,0,
-                0,1,1,1,1,0,0,0,
-                0,0,0,0,0,1,0,0,
-                0,0,0,0,0,0,1,0,
-                0,0,0,0,0,0,1,0,
-                0,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                1,0,0,0,0,0,1,0,
-                0,1,1,1,1,1,0,0
-            };
-            drawCharPattern(s_pattern, char_x, y, 8, 12);
-        } else if (c == '!') {
-            int excl_pattern[] = {
-                0,0,1,1,0,0,0,0,
-                0,0,1,1,0,0,0,0,
-                0,0,1,1,0,0,0,0,
-                0,0,1,1,0,0,0,0,
-                0,0,1,1,0,0,0,0,
-                0,0,1,1,0,0,0,0,
-                0,0,1,1,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,0,0,0,0,0,0,
-                0,0,1,1,0,0,0,0,
-                0,0,1,1,0,0,0,0,
-                0,0,0,0,0,0,0,0
-            };
-            drawCharPattern(excl_pattern, char_x, y, 8, 12);
-        } else if (c == ' ') {
-        }
+        const unsigned char* pattern = getCharPattern(text[i]);
+        drawCharPattern(pattern, x + (i * 9), y);  // Espaciado de 9 píxeles
     }
 }
-
 void handleInput(void) {
     char key;
     
@@ -684,11 +419,11 @@ void handleInput(void) {
     // Procesar rotación RÁPIDA del jugador 2 (independiente del movimiento)
     if (gameMode == MODE_MULTIPLAYER) {
         if (p2_left_pressed && p2_rotate_cooldown == 0) {
-            paddle2.aim_angle = (paddle2.aim_angle - 8 + 360) % 360; // Rotación más rápida
+            paddle2.aim_angle = (paddle2.aim_angle - 8 + 360) % 360; 
             p2_rotate_cooldown = 0;
         }
         if (p2_right_pressed && p2_rotate_cooldown == 0) {
-            paddle2.aim_angle = (paddle2.aim_angle + 8) % 360; // Rotación más rápida
+            paddle2.aim_angle = (paddle2.aim_angle + 8) % 360; 
             p2_rotate_cooldown = 0;
         }
         
@@ -721,7 +456,7 @@ void processMovement(void) {
         }
     }
     
-    // Movimiento continuo y fluido para jugador 2
+    // Movimiento continuo y fluido
     if (gameMode == MODE_MULTIPLAYER && p2_moving > 0) {
         int angle_index = (paddle2.aim_angle / 10) % 36;
         int angle_x = cos_table_fine[angle_index];
@@ -793,7 +528,6 @@ void updateGame(void) {
         
         int dist = isqrt(distance1_sq);
         if (dist > 1) {
-            // Física ajustada para la nueva mecánica
             int base_impact = 300; // Más impulso inicial
             int speed_multiplier = paddle1_speed * 100;
             int final_speed = base_impact + speed_multiplier;
@@ -824,12 +558,12 @@ void updateGame(void) {
         
         int dist = isqrt(distance2_sq);
         if (dist > 1) {
-            int base_impact = 300; // Más impulso inicial
+            int base_impact = 300; // impulso inicial
             int speed_multiplier = paddle2_speed * 100;
             int final_speed = base_impact + speed_multiplier;
             
             if (final_speed < 300) final_speed = 300;
-            if (final_speed > 2000) final_speed = 2000; // Límite más alto
+            if (final_speed > 2000) final_speed = 2000; // Límite
             
             ball.vx = (dx2 * final_speed) / dist;
             ball.vy = (dy2 * final_speed) / dist;
@@ -865,28 +599,28 @@ void updateGame(void) {
     ball.vy = (ball.vy * 996) / 1000;
     
     // Parar cuando la velocidad es baja
-    if (abs(ball.vx) < 6 && abs(ball.vy) < 6) { // Umbral optimizado
+    if (abs(ball.vx) < 6 && abs(ball.vy) < 6) { 
         ball.vx = 0;
         ball.vy = 0;
     }
     
-    // Rebotes en las paredes con física ajustada
+    // Rebotes en las paredes
     if (ball.x - ball.size <= 0) {
         ball.x = ball.size;
         ball.vx = -ball.vx * 87 / 100;
         playSound(400, 60);
     }
-    if (ball.x + ball.size >= SCREEN_WIDTH) {  // Ya usa SCREEN_WIDTH dinámico
+    if (ball.x + ball.size >= SCREEN_WIDTH) {  
         ball.x = SCREEN_WIDTH - ball.size;
         ball.vx = -ball.vx * 87 / 100;
         playSound(400, 60);
     }
-    if (ball.y - ball.size <= 45) { // Evitar UI
+    if (ball.y - ball.size <= 45) { 
         ball.y = 45 + ball.size;
         ball.vy = -ball.vy * 87 / 100;
         playSound(400, 60);
     }
-    if (ball.y + ball.size >= SCREEN_HEIGHT) {  // Ya usa SCREEN_HEIGHT dinámico
+    if (ball.y + ball.size >= SCREEN_HEIGHT) {  
         ball.y = SCREEN_HEIGHT - ball.size;
         ball.vy = -ball.vy * 87 / 100;
         playSound(400, 60);
@@ -914,25 +648,32 @@ void showLevelComplete(void) {
     
     fillScreen(COLOR_YELLOW);
     
-    int box_width = SCREEN_WIDTH * 3 / 5;  // 60% del ancho de pantalla
-    int box_height = 200;
+    int box_width = SCREEN_WIDTH * 3 / 5;
+    int box_height = 100;
     int box_x = (SCREEN_WIDTH - box_width) / 2;
     int box_y = (SCREEN_HEIGHT - box_height) / 2;
     
     drawRect(box_x, box_y, box_width, box_height, COLOR_BLUE);
-    drawRect(box_x + 10, box_y + 10, box_width - 20, box_height - 20, COLOR_WHITE);
+    drawRect(box_x + 5, box_y + 5, box_width - 10, box_height - 10, COLOR_WHITE);
     
-    // Texto centrado dinámicamente
-    int text_x = box_x + (box_width - 190) / 2;  // Centrar "NIVEL COMPLETADO!" 
-    drawSimpleText("NIVEL COMPLETADO!", text_x, box_y + 50);
+    // Centrar "NIVEL COMPLETADO!"
+    const char* texto1 = "NIVEL COMPLETADO!";
+    int text1_width = getTextWidth(texto1);
+    int text1_x = box_x + (box_width - text1_width) / 2;
+    drawSimpleText(texto1, text1_x, box_y + 20);
     
-    int golpes_x = box_x + (box_width - 100) / 2;  // Centrar "GOLPES:"
-    drawSimpleText("GOLPES: ", golpes_x, box_y + 100);
-    drawNumber(hits, golpes_x + 88, box_y + 100);
+    // "GOLPES: " + número - CORREGIDO
+    const char* golpes_label = "GOLPES: ";
+    int label_width = getTextWidth(golpes_label);
+    int number_width = getTextWidth("999"); // Estimación para centrado
+    int total_width = label_width + number_width;
+    int text2_x = box_x + (box_width - total_width) / 2;
     
+    drawSimpleText(golpes_label, text2_x, box_y + 50);
+    drawNumber(hits, text2_x + label_width, box_y + 50);
     
-    // Pausa MUCHO más larga para poder leer tranquilo
-    for (volatile int i = 0; i < 50000000; i++); 
+    // Pausa
+    for (volatile int i = 0; i < 50000000; i++);
     
     resetBall();
     placeHoleRandomly();
@@ -946,24 +687,32 @@ void showHoleMessage(void) {
     
     fillScreen(COLOR_YELLOW);
     
-    int box_width = SCREEN_WIDTH * 3 / 5;  // 60% del ancho de pantalla
-    int box_height = 200;
+    int box_width = SCREEN_WIDTH * 3 / 5;
+    int box_height = 100;
     int box_x = (SCREEN_WIDTH - box_width) / 2;
     int box_y = (SCREEN_HEIGHT - box_height) / 2;
     
     drawRect(box_x, box_y, box_width, box_height, COLOR_BLUE);
-    drawRect(box_x + 10, box_y + 10, box_width - 20, box_height - 20, COLOR_WHITE);
+    drawRect(box_x + 5, box_y + 5, box_width - 10, box_height - 10, COLOR_WHITE);
     
-    // Texto centrado dinámicamente
-    int text_x = box_x + (box_width - 180) / 2;  // Centrar "JUEGO COMPLETADO!"
-    drawSimpleText("JUEGO COMPLETADO!", text_x, box_y + 50);
+    // Centrar "JUEGO COMPLETADO!"
+    const char* texto1 = "JUEGO COMPLETADO!";
+    int text1_width = getTextWidth(texto1);
+    int text1_x = box_x + (box_width - text1_width) / 2;
+    drawSimpleText(texto1, text1_x, box_y + 20);
     
-    int golpes_x = box_x + (box_width - 160) / 2;  // Centrar "GOLPES TOTALES:"
-    drawSimpleText("GOLPES TOTALES: ", golpes_x, box_y + 100);
-    drawNumber(hits, golpes_x + 168, box_y + 100);
+    // "GOLPES TOTALES: " + número - CORREGIDO
+    const char* golpes_label = "GOLPES TOTALES: ";
+    int label_width = getTextWidth(golpes_label);
+    int number_width = getTextWidth("999"); // Estimación para centrado
+    int total_width = label_width + number_width;
+    int text2_x = box_x + (box_width - total_width) / 2;
     
-    // Pausa más larga para el final del juego
-    for (volatile int i = 0; i < 60000000; i++); 
+    drawSimpleText(golpes_label, text2_x, box_y + 50);
+    drawNumber(hits, text2_x + label_width, box_y + 50);
+    
+    // Pausa
+    for (volatile int i = 0; i < 60000000; i++);
     
     fillScreen(COLOR_GREEN);
 }
@@ -990,17 +739,29 @@ void drawCircle(int centerX, int centerY, int radius, uint32_t color) {
 }
 
 void drawNumber(int number, int x, int y) {
-    char numStr[10];
+    char numStr[16];
     int i = 0;
     
     if (number == 0) {
         numStr[0] = '0';
         numStr[1] = '\0';
     } else {
+        // Manejar números negativos
+        int isNegative = 0;
+        if (number < 0) {
+            isNegative = 1;
+            number = -number;
+        }
+        
         while (number > 0) {
             numStr[i++] = '0' + (number % 10);
             number /= 10;
         }
+        
+        if (isNegative) {
+            numStr[i++] = '-';
+        }
+        
         numStr[i] = '\0';
         
         // Invertir string
@@ -1011,54 +772,8 @@ void drawNumber(int number, int x, int y) {
         }
     }
     
-    // Dibujar cada dígito con patrones más prolijos y compactos
-    for (int digit = 0; digit < strlen(numStr); digit++) {
-        char c = numStr[digit];
-        int digit_x = x + (digit * 10); // Más compacto para alinearse con el texto
-        
-        // Patrones de números 7x12 más prolijos (igual altura que el texto)
-        int patterns[10][84] = {
-            // 0
-            {0,1,1,1,1,1,0, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1,
-             1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 0,1,1,1,1,1,0},
-            // 1
-            {0,0,1,1,0,0,0, 0,1,1,1,0,0,0, 1,1,1,1,0,0,0, 0,0,1,1,0,0,0, 0,0,1,1,0,0,0, 0,0,1,1,0,0,0,
-             0,0,1,1,0,0,0, 0,0,1,1,0,0,0, 0,0,1,1,0,0,0, 0,0,1,1,0,0,0, 0,0,1,1,0,0,0, 1,1,1,1,1,1,0},
-            // 2
-            {0,1,1,1,1,1,0, 1,1,0,0,0,1,1, 0,0,0,0,0,1,1, 0,0,0,0,0,1,1, 0,0,0,0,1,1,0, 0,0,0,1,1,0,0,
-             0,0,1,1,0,0,0, 0,1,1,0,0,0,0, 1,1,0,0,0,0,0, 1,1,0,0,0,0,0, 1,1,0,0,0,1,1, 1,1,1,1,1,1,1},
-            // 3
-            {0,1,1,1,1,1,0, 1,1,0,0,0,1,1, 0,0,0,0,0,1,1, 0,0,0,0,0,1,1, 0,0,1,1,1,1,0, 0,0,0,0,0,1,1,
-             0,0,0,0,0,1,1, 0,0,0,0,0,1,1, 0,0,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 0,1,1,1,1,1,0},
-            // 4
-            {1,1,0,0,1,1,0, 1,1,0,0,1,1,0, 1,1,0,0,1,1,0, 1,1,0,0,1,1,0, 1,1,0,0,1,1,0, 1,1,1,1,1,1,1,
-             1,1,1,1,1,1,1, 0,0,0,0,1,1,0, 0,0,0,0,1,1,0, 0,0,0,0,1,1,0, 0,0,0,0,1,1,0, 0,0,0,0,1,1,0},
-            // 5
-            {1,1,1,1,1,1,1, 1,1,0,0,0,0,0, 1,1,0,0,0,0,0, 1,1,0,0,0,0,0, 1,1,1,1,1,1,0, 0,0,0,0,0,1,1,
-             0,0,0,0,0,1,1, 0,0,0,0,0,1,1, 0,0,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 0,1,1,1,1,1,0},
-            // 6
-            {0,1,1,1,1,1,0, 1,1,0,0,0,1,1, 1,1,0,0,0,0,0, 1,1,0,0,0,0,0, 1,1,1,1,1,1,0, 1,1,0,0,0,1,1,
-             1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 0,1,1,1,1,1,0},
-            // 7
-            {1,1,1,1,1,1,1, 0,0,0,0,0,1,1, 0,0,0,0,1,1,0, 0,0,0,0,1,1,0, 0,0,0,1,1,0,0, 0,0,0,1,1,0,0,
-             0,0,1,1,0,0,0, 0,0,1,1,0,0,0, 0,1,1,0,0,0,0, 0,1,1,0,0,0,0, 1,1,0,0,0,0,0, 1,1,0,0,0,0,0},
-            // 8
-            {0,1,1,1,1,1,0, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 0,1,1,1,1,1,0, 1,1,0,0,0,1,1,
-             1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 0,1,1,1,1,1,0},
-            // 9
-            {0,1,1,1,1,1,0, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 0,1,1,1,1,1,1,
-             0,0,0,0,0,1,1, 0,0,0,0,0,1,1, 0,0,0,0,0,1,1, 1,1,0,0,0,1,1, 1,1,0,0,0,1,1, 0,1,1,1,1,1,0}
-        };
-        
-        int num = c - '0';
-        for (int row = 0; row < 12; row++) {
-            for (int col = 0; col < 7; col++) {
-                if (patterns[num][row * 7 + col]) {
-                    putPixel(COLOR_BLACK, digit_x + col, y + row);
-                }
-            }
-        }
-    }
+    // Usar drawSimpleText para renderizar
+    drawSimpleText(numStr, x, y);
 }
 
 void drawAimArrow(Paddle* paddle) {
@@ -1133,4 +848,16 @@ void drawLine(int x1, int y1, int x2, int y2, uint32_t color) {
             y += sy;
         }
     }
+}
+
+const unsigned char* getCharPattern(char c) {
+    if (c >= 32 && c <= 126) {
+        return font_8x12[c - 32];  // ASCII 32 es espacio, índice 0
+    }
+    return font_8x12[0];  // Carácter por defecto (espacio)
+}
+
+int getTextWidth(const char* text) {
+    int len = strlen(text);
+    return len * 9 - 1;  // 8 píxeles + 1 de espaciado, menos 1 al final
 }

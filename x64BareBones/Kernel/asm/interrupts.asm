@@ -126,14 +126,8 @@ _syscallHandler:
     push r14
     push r15
     
-    ; Llamar al dispatcher
-    ; rax = syscall number (ya está en su lugar)
-    ; rsi = param 1 (ya está en su lugar)  
-    ; rdx = param 2 (ya está en su lugar)
-    ; rcx = param 3 (ya está en su lugar)
+  
     call syscallDispatcher
-    
-    ; ¡IMPORTANTE! rax ahora contiene el valor de retorno - NO tocarlo
     
     ; Restaurar todos los registros EXCEPTO rax
     pop r15

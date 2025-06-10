@@ -8,7 +8,7 @@
 #define PIT_CHANNEL_2       0x42
 #define SPEAKER_PORT        0x61
 
-// Frecuencias musicales comunes (en Hz)
+// Frecuencias musicales (en Hz)
 #define NOTE_C4     262
 #define NOTE_D4     294
 #define NOTE_E4     330

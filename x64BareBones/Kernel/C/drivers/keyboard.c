@@ -86,7 +86,6 @@ void keyboard_irq_handler(void) {
     
     char c = 0;
     
-    // AGREGADO: Manejo especial para flechas y ESC
     switch (sc) {
         case 0x48: // Flecha arriba
             c = 72;
@@ -104,7 +103,6 @@ void keyboard_irq_handler(void) {
             c = 27;
             break;
         default:
-            // Manejo normal para otras teclas
             if ((sc >= 0x10 && sc <= 0x19) || (sc >= 0x1E && sc <= 0x26) || (sc >= 0x2C && sc <= 0x32)) {
                 if ((shift_pressed && !caps_lock_on) || (!shift_pressed && caps_lock_on)) {
                     c = keymap_shift[sc];
@@ -135,7 +133,6 @@ char keyboard_getchar(void) {
     return buffer;
 }
 
-// AGREGADO: Función para limpiar el buffer después de excepciones
 void keyboard_clear_buffer(void) {
     ready = 0;
     buffer = 0;
@@ -146,14 +143,10 @@ void keyboard_clear_buffer(void) {
     }
 }
 
-// Agregar estas funciones a keyboard.c
-
-// Verificar si hay una tecla disponible sin bloquear
 int keyboard_has_key(void) {
     return ready;
 }
 
-// Obtener tecla sin bloquear (retorna 0 si no hay tecla)
 char keyboard_getchar_nonblocking(void) {
     if (ready) {
         ready = 0;
