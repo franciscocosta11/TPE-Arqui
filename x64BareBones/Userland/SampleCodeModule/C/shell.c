@@ -105,11 +105,7 @@ void shell() {
     char argument[USERNAME_MAX];
     int inputLen = 0;
 
-    printf("%d/n", getScreenHeight());
-    printf("%d/n", getScreenWidth());
-
-    // SONIDO DE BIENVENIDA (SOLO UNA VEZ)
-    print("¡Bienvenido al sistema!\n");
+    print("Bienvenido al mejor tpe de Arqui!\n");
     playWinSound();
     
     printPrompt();
@@ -211,32 +207,11 @@ void shell() {
             // COMANDO GOLF CON SONIDO DE INICIO
             else if (strcmp(command, "golf") == 0) {
                 clearScreen();
-                print("========================================\n");
-                print("         BIENVENIDO A PONGIS-GOLF       \n");
-                print("========================================\n");
-                print("\n");
-                print("Selecciona el modo de juego:\n");
-                print("\n");
-                print("  [1] - Un Jugador\n");
-                print("       Controles: Flechas\n");
-                print("       ← → : Rotar palo\n");
-                print("       ↑   : Mover palo\n");
-                print("\n");
-                print("  [2] - Dos Jugadores\n");
-                print("       Jugador 1: Flechas (← → ↑)\n");
-                print("       Jugador 2: WASD (A D W)\n");
-                print("       ESPACIO: Cambiar jugador\n");
-                print("\n");
-                print("  [ESC] - Volver al menu\n");
-                print("\n");
-                print("Niveles: 3 (hoyo cada vez mas pequeno)\n");
-                print("Objetivo: Meter la pelota en el hoyo\n");
-                print("\n");
                 playBeep(); // SONIDO AL INICIAR GOLF
                 startGolfGame();
                 // Cuando regrese del juego
                 clearScreen();
-                print("¡Gracias por jugar Pongis-Golf!\n");
+                print("Gracias por jugar Pongis-Golf!\n");
             }
             else if (inputLen > 0) {
                 print("Comando no encontrado: ");

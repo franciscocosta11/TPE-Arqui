@@ -340,21 +340,11 @@ void soundOff(void) {
 }
 
 uint16_t getScreenWidth(void) {
-    uint16_t result = (uint16_t)syscall(SYS_GET_SCREEN_WIDTH, 0, 0, 0);
+    return (uint16_t)syscall(SYS_GET_SCREEN_WIDTH, 0, 0, 0);
     
-    // Debug: imprimir el resultado
-    printf("getScreenWidth() devolvió: %d\n", result);
     
-    // Validar resultado
-    if (result > 0 && result < 5000) {
-        return result;
-    } else {
-        printf("Valor inválido, usando 1024 por defecto\n");
-        return 1024; // Valor por defecto
-    }
 }
 
 uint16_t getScreenHeight(void) {
-    uint16_t result = (uint16_t)syscall(SYS_GET_SCREEN_HEIGHT, 0, 0, 0);
-    return result;
+    return (uint16_t)syscall(SYS_GET_SCREEN_HEIGHT, 0, 0, 0);
 }

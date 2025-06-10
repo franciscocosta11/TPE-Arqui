@@ -92,10 +92,27 @@ void showMenu(void) {
     if (!menuInitialized) {
         fillScreen(COLOR_BLACK);
         
-        print("PONGIS-GOLF\n");
-        char username[] = "Negrito";
-        printf("Bienvenido al pongis golf de los pibes %s\n", username);
-        print("Para jugar de a un jugador, presione 1. Para jugar de a dos jugadores, presione 2\n");
+                print("========================================\n");
+                print("         BIENVENIDO A PONGIS-GOLF       \n");
+                print("========================================\n");
+                print("\n");
+                print("Selecciona el modo de juego:\n");
+                print("\n");
+                print("  [1] - Un Jugador\n");
+                print("       Controles: Flechas\n");
+                print("       Flechas laterales: Rotar palo\n");
+                print("       Flecha superior   : Mover palo\n");
+                print("\n");
+                print("  [2] - Dos Jugadores\n");
+                print("       Jugador 1: Flechas \n");
+                print("       Jugador 2: WASD (A D W)\n");
+                print("       ESPACIO: Cambiar jugador\n");
+                print("\n");
+                print("  [ESC] - Volver al menu\n");
+                print("\n");
+                print("Niveles: 3 (hoyo cada vez mas pequeno)\n");
+                print("Objetivo: Meter la pelota en el hoyo\n");
+                print("\n");
         
         menuInitialized = 1;
     }
@@ -181,15 +198,14 @@ void placeHoleRandomly(void) {
 }
 
 void initGame(void) {
-    printf("=== DEBUG SCREEN DIMENSIONS ===\n");
     
-    // Obtener y mostrar valores
+    // Obtener valores
     SCREEN_WIDTH = getScreenWidth();
     SCREEN_HEIGHT = getScreenHeight();
     
     fillScreen(COLOR_GREEN);
     
-    // Semilla más variada
+    // Semilla random...
     random_seed = 12345 + currentLevel * 1000 + hits * 100;
     
     // Pelota en el centro (usando dimensiones dinámicas)
