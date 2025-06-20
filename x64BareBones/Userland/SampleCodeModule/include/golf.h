@@ -360,6 +360,9 @@ void renderGame(void);
  */
 void drawUI(void);
 
+void handleInputImproved(void);
+void processMovementImproved(void);
+
 #pragma GCC diagnostic pop
 
 #endif
