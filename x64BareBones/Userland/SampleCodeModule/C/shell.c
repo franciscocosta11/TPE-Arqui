@@ -70,6 +70,7 @@ void displayHelp() {
     print("  color <nombre> - Cambia el color del texto\n");
     print("  user <nombre>  - Cambia el nombre de usuario\n");
     print("  golf     - Inicia el juego Pongis-Golf\n");
+    print("  9        - Captura de registros \n");
 }
 
 void displayRegisters() {
@@ -106,7 +107,7 @@ void shell() {
     int inputLen = 0;
 
     print("Bienvenido al mejor tpe de Arqui!\n");
-    playWinSound();
+    //playWinSound();
     
     printPrompt();
 
