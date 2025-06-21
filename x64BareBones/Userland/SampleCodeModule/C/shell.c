@@ -85,7 +85,7 @@ void displayRegisters() {
     };
     
     print("Valores de los registros:\n");
-    for (int i = 0; i < USER_LENGTH; i++) {
+    for (int i = 0; i < 19; i++) {
         print("  ");
         print(regNames[i]);
         print(" = 0x");
@@ -141,7 +141,7 @@ void shell() {
                 clearScreen();
             }
             else if (strcmp(command, "ex1") == 0) {
-                print("[ex1] Ejecutando excepcion de división por cero...\n");
+                print("[ex1] Ejecutando excepcion de division por cero...\n");
                 triggerDivisionByZero();
             }
             else if (strcmp(command, "ex2") == 0) {

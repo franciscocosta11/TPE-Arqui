@@ -39,31 +39,32 @@ global _exception06Handler
 %endmacro
 
 _exception0Handler:
-    cli
     pushState
     
-    ; Primer parámetro: ID de la excepción (0 para división por cero)
-    mov rdi, 0
-    ; Segundo parámetro: puntero a la estructura de registros
-    mov rsi, rsp
+    mov rdi, 0          ; ID de excepción
+    mov rsi, rsp        ; Puntero a registros
     
     call exceptionDispatcher
     
     popState
-    sti
+    ; NO retornar a la instrucción problemática
+    ; En lugar de eso, ajustar RIP para saltar la instrucción
+    mov rax, [rsp]      ; Obtener RIP del stack
+    add rax, 2          ; Saltar la instrucción div (2 bytes aprox)
+    mov [rsp], rax      ; Actualizar RIP en el stack
     iretq
 
 _exception06Handler:
-    cli
     pushState
     
-    ; Primer parámetro: ID de la excepción (6 para opcode inválido)
-    mov rdi, 6
-    ; Segundo parámetro: puntero a la estructura de registros
-    mov rsi, rsp
+    mov rdi, 6          ; ID de excepción  
+    mov rsi, rsp        ; Puntero a registros
     
     call exceptionDispatcher
     
     popState
-    sti
+    ; Para invalid opcode, también saltar la instrucción problemática
+    mov rax, [rsp]      ; Obtener RIP del stack
+    add rax, 2          ; Saltar la instrucción inválida
+    mov [rsp], rax      ; Actualizar RIP en el stack
     iretq

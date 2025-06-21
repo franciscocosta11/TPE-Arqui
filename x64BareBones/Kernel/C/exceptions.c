@@ -19,14 +19,21 @@ static void zero_division(registers_t *regs);
 static void invalid_opcode(registers_t *regs);
 
 void exceptionDispatcher(uint64_t exception, uint64_t *stack_frame) {
-
     registers_t regs;
+    
+    // El stack_frame contiene registros en este orden (debido al pushState):
+    // [0] = rax, [1] = rbx, [2] = rcx, [3] = rdx, [4] = rbp
+    // [5] = rdi, [6] = rsi, [7] = r8, [8] = r9, [9] = r10
+    // [10] = r11, [11] = r12, [12] = r13, [13] = r14, [14] = r15
+    // [15] = RIP (de la excepción), [16] = CS, [17] = RFLAGS, [18] = RSP original
+    
     regs.rax = stack_frame[0];
     regs.rbx = stack_frame[1]; 
     regs.rcx = stack_frame[2];
     regs.rdx = stack_frame[3];
-    regs.rsi = stack_frame[4];
+    regs.rbp = stack_frame[4];
     regs.rdi = stack_frame[5];
+    regs.rsi = stack_frame[6];
     regs.r8 = stack_frame[7];
     regs.r9 = stack_frame[8];
     regs.r10 = stack_frame[9];
@@ -35,10 +42,9 @@ void exceptionDispatcher(uint64_t exception, uint64_t *stack_frame) {
     regs.r13 = stack_frame[12];
     regs.r14 = stack_frame[13];
     regs.r15 = stack_frame[14];
-    regs.rsp = stack_frame[15];     // Stack pointer
-    regs.rbp = stack_frame[16];     // Base pointer  
-    regs.rip = stack_frame[17];     // Instruction pointer
-    regs.rflags = stack_frame[18];
+    regs.rip = stack_frame[15];     // RIP de la excepción (debería ser ~0x400000)
+    regs.rflags = stack_frame[17];  // RFLAGS
+    regs.rsp = stack_frame[18];     // RSP original
 
     switch (exception) {
         case ZERO_EXCEPTION_ID:
@@ -50,8 +56,6 @@ void exceptionDispatcher(uint64_t exception, uint64_t *stack_frame) {
     }
     
     keyboard_clear_buffer();
-    
-    stack_frame[15] += 2; // Saltar la instrucción problemática
 }
 
 // Función auxiliar para imprimir registros
@@ -83,7 +87,6 @@ static void print_registers(registers_t *r) {
         &r->rip, &r->rflags                              
     };
     
-   
     for (int i = 0; i < 18; i++) {                       
         vdPrint(reg_names[i]);
         print_hex(*reg_values[i]);
