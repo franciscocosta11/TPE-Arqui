@@ -1,5 +1,5 @@
 #include "./../include/libc.h"
-#include "./../include/golf.h" // Se incluyó el archivo de cabecera que contiene los prototipos de handleInputImproved y processMovementImproved
+#include "./../include/golf.h" 
 
 int SCREEN_HEIGHT = 768;
 int SCREEN_WIDTH = 1024;
@@ -27,8 +27,7 @@ static int sin_table_fine[36] = {
     0, -17, -34, -50, -64, -77, -87, -94, -98, -100, -98, -94, -87, -77, -64, -50, -34, -17
 };
 
-// ================ ESTADO DE TECLAS MEJORADO ================
-// Estado persistente de las teclas para movimiento simultáneo
+// Estado de las teclas
 typedef struct {
     int p1_left;
     int p1_right; 
@@ -41,7 +40,7 @@ typedef struct {
 
 static KeyState keyState = {0};
 
-// Cooldowns para rotación suave
+// Cooldowns
 static int p1_rotate_cooldown = 0;
 static int p2_rotate_cooldown = 0;
 
@@ -77,7 +76,6 @@ void startGolfGame(void) {
     }
 }
 
-// ================ INPUT HANDLING MEJORADO ================
 void handleInputImproved(void) {
     char key;
     
@@ -86,13 +84,13 @@ void handleInputImproved(void) {
     if (p2_rotate_cooldown > 0) p2_rotate_cooldown--;
     
     // Leer TODAS las teclas disponibles en este frame
+    // jugador 2
     while ((key = getKeyNonBlocking()) != 0) {
         switch (key) {
             case 27: // ESC
                 keyState.escape = 1;
                 break;
                 
-            // ============ JUGADOR 1 (Flechas) ============
             case 75: // Flecha izquierda
                 keyState.p1_left = 1;
                 break;
@@ -103,7 +101,7 @@ void handleInputImproved(void) {
                 keyState.p1_up = 1;
                 break;
                 
-            // ============ JUGADOR 2 (WASD) ============
+            // jugador 1
             case 'a': case 'A':
                 if (gameMode == MODE_MULTIPLAYER) {
                     keyState.p2_left = 1;
@@ -130,30 +128,28 @@ void handleInputImproved(void) {
     }
 }
 
-// ================ MOVEMENT PROCESSING MEJORADO ================
 void processMovementImproved(void) {
-    // ============ PROCESAR JUGADOR 1 ============
-    
+
     // Rotación del jugador 1 (independiente del movimiento)
     if (keyState.p1_left && p1_rotate_cooldown == 0) {
         paddle1.aim_angle = (paddle1.aim_angle - 10 + 360) % 360;
-        p1_rotate_cooldown = 1; // Cooldown mínimo para suavidad
+        p1_rotate_cooldown = 1; // Cooldown 
         keyState.p1_left = 0; // Consumir la tecla
     }
     
     if (keyState.p1_right && p1_rotate_cooldown == 0) {
         paddle1.aim_angle = (paddle1.aim_angle + 10) % 360;
         p1_rotate_cooldown = 1;
-        keyState.p1_right = 0; // Consumir la tecla
+        keyState.p1_right = 0; 
     }
     
-    // Movimiento del jugador 1 (continuo mientras se mantiene presionada)
+    // Movimiento del jugador 1 
     if (keyState.p1_up) {
         int angle_index = (paddle1.aim_angle / 10) % 36;
         int angle_x = cos_table_fine[angle_index];
         int angle_y = sin_table_fine[angle_index];
         
-        int new_x = paddle1.x + (angle_x * 12) / 100; // Velocidad aumentada
+        int new_x = paddle1.x + (angle_x * 12) / 100; 
         int new_y = paddle1.y + (angle_y * 12) / 100;
         
         // Verificar límites
@@ -162,14 +158,13 @@ void processMovementImproved(void) {
             paddle1.x = new_x;
             paddle1.y = new_y;
         }
-        
-        // La tecla no se consume aquí para permitir movimiento continuo
+
     } else {
         // Resetear la tecla si no está presionada en este frame
         keyState.p1_up = 0;
     }
     
-    // ============ PROCESAR JUGADOR 2 (si está en modo multiplayer) ============
+    // modo multiplayer
     if (gameMode == MODE_MULTIPLAYER) {
         
         // Rotación del jugador 2 (independiente del movimiento)
@@ -185,7 +180,7 @@ void processMovementImproved(void) {
             keyState.p2_right = 0; // Consumir la tecla
         }
         
-        // Movimiento del jugador 2 (continuo mientras se mantiene presionada)
+        // Movimiento del jugador 2
         if (keyState.p2_up) {
             int angle_index = (paddle2.aim_angle / 10) % 36;
             int angle_x = cos_table_fine[angle_index];
@@ -201,16 +196,15 @@ void processMovementImproved(void) {
                 paddle2.y = new_y;
             }
             
-            // La tecla no se consume aquí para permitir movimiento continuo
         } else {
-            // Resetear la tecla si no está presionada en este frame
+            // Resetear la tecla si no está presionada 
             keyState.p2_up = 0;
         }
     }
 }
 
-// ================ RESTO DE FUNCIONES SIN CAMBIOS ================
-// Función auxiliar para dibujar patrones de caracteres de forma eficiente
+
+// Función auxiliar para dibujar patrones de caracteres 
 void drawCharPattern(const unsigned char* pattern, int x, int y) {
     for (int row = 0; row < 12; row++) {
         unsigned char byte = pattern[row];
@@ -272,9 +266,9 @@ void showMenu(void) {
     }
 }
 
-// Generador de números aleatorios mejorado
+// Generador de números aleatorios 
 int simpleRandom(int min, int max) {
-    random_seed = random_seed * 1664525 + 1013904223; // Mejores constantes
+    random_seed = random_seed * 1664525 + 1013904223; 
     return min + (random_seed % (max - min + 1));
 }
 
@@ -314,7 +308,7 @@ void placeHoleRandomly(void) {
             dist2_sq = dx2*dx2 + dy2*dy2;
         }
         
-        // Verificar conflictos con UI (proporcional a pantalla)
+        // Verificar conflictos con UI 
         int ui_conflict = 0;
         if (hole.y < 50) { // Área de UI
             // Calcular áreas de UI proporcionales
@@ -405,20 +399,69 @@ void drawGame(void) {
         drawCircle(last_ball_x, last_ball_y, ball.size + 2, COLOR_GREEN);
     }
     
-    // Limpiar paddle 1 SOLO si se movió o rotó
+    // Limpiar paddle 1 SOLO si se movió o rotó - CON VERIFICACIÓN DE LÍMITES
     if (last_paddle1_x != -1 && (last_paddle1_x != paddle1.x || last_paddle1_y != paddle1.y || last_angle1 != paddle1.aim_angle)) {
         int old_center_x = last_paddle1_x + paddle1.width/2;
         int old_center_y = last_paddle1_y + paddle1.height/2;
-        // Limpiar área más grande para incluir la flecha
-        drawRect(old_center_x - 60, old_center_y - 60, 120, 120, COLOR_GREEN);
+        
+        int clean_x = old_center_x - 60;
+        int clean_y = old_center_y - 60;
+        int clean_width = 120;
+        int clean_height = 120;
+        
+        // Ajustar coordenadas para que no se salgan de la pantalla
+        if (clean_x < 0) {
+            clean_width += clean_x; // Reducir ancho
+            clean_x = 0;
+        }
+        if (clean_y < 45) { // No limpiar sobre la UI
+            clean_height += (clean_y - 45);
+            clean_y = 45;
+        }
+        if (clean_x + clean_width > SCREEN_WIDTH) {
+            clean_width = SCREEN_WIDTH - clean_x;
+        }
+        if (clean_y + clean_height > SCREEN_HEIGHT) {
+            clean_height = SCREEN_HEIGHT - clean_y;
+        }
+        
+        // Solo limpiar si el área es válida
+        if (clean_width > 0 && clean_height > 0) {
+            drawRect(clean_x, clean_y, clean_width, clean_height, COLOR_GREEN);
+        }
     }
     
-    // Limpiar paddle 2 SOLO si se movió o rotó
+    // Limpiar paddle 2 SOLO si se movió o rotó 
     if (gameMode == MODE_MULTIPLAYER && last_paddle2_x != -1 && 
         (last_paddle2_x != paddle2.x || last_paddle2_y != paddle2.y || last_angle2 != paddle2.aim_angle)) {
         int old_center_x = last_paddle2_x + paddle2.width/2;
         int old_center_y = last_paddle2_y + paddle2.height/2;
-        drawRect(old_center_x - 60, old_center_y - 60, 120, 120, COLOR_GREEN);
+        
+        int clean_x = old_center_x - 60;
+        int clean_y = old_center_y - 60;
+        int clean_width = 120;
+        int clean_height = 120;
+        
+        // Ajustar coordenadas para que no se salgan de la pantalla
+        if (clean_x < 0) {
+            clean_width += clean_x; // Reducir ancho
+            clean_x = 0;
+        }
+        if (clean_y < 45) { // No limpiar sobre la UI
+            clean_height += (clean_y - 45);
+            clean_y = 45;
+        }
+        if (clean_x + clean_width > SCREEN_WIDTH) {
+            clean_width = SCREEN_WIDTH - clean_x;
+        }
+        if (clean_y + clean_height > SCREEN_HEIGHT) {
+            clean_height = SCREEN_HEIGHT - clean_y;
+        }
+        
+        // Solo limpiar si el área es válida
+        if (clean_width > 0 && clean_height > 0) {
+            drawRect(clean_x, clean_y, clean_width, clean_height, COLOR_GREEN);
+        }
     }
     
     // Dibujar hoyo con borde negro
@@ -461,7 +504,7 @@ void drawGame(void) {
     last_hole_y = hole.y;
 }
 
-// UI sin fondo amarillo - solo recuadros flotantes
+
 void drawUI(void) {
     // Calcular posiciones proporcionales a la pantalla
     int left_box_width = 120;   // Ancho fijo para "NIVEL: X"
@@ -551,12 +594,12 @@ void updateGame(void) {
         
         int dist = isqrt(distance1_sq);
         if (dist > 1) {
-            int base_impact = 300; // Más impulso inicial
+            int base_impact = 300; 
             int speed_multiplier = paddle1_speed * 100;
             int final_speed = base_impact + speed_multiplier;
             
             if (final_speed < 300) final_speed = 300;
-            if (final_speed > 2000) final_speed = 2000; // Límite más alto
+            if (final_speed > 2000) final_speed = 2000; 
             
             ball.vx = (dx1 * final_speed) / dist;
             ball.vy = (dy1 * final_speed) / dist;
@@ -613,12 +656,10 @@ void updateGame(void) {
         last_paddle2_y = paddle2.y;
     }
     
-    // Física de la pelota mejorada - más fluida y con fricción optimizada
-    ball.x += ball.vx / 100; // Movimiento más fluido
+    ball.x += ball.vx / 100; 
     ball.y += ball.vy / 100;
     
-    // Fricción optimizada para fluidez
-    ball.vx = (ball.vx * 996) / 1000; // Fricción balanceada
+    ball.vx = (ball.vx * 996) / 1000; 
     ball.vy = (ball.vy * 996) / 1000;
     
     // Parar cuando la velocidad es baja
@@ -685,7 +726,7 @@ void showLevelComplete(void) {
     int text1_x = box_x + (box_width - text1_width) / 2;
     drawSimpleText(texto1, text1_x, box_y + 20);
     
-    // "GOLPES: " + número - CORREGIDO
+    // "GOLPES: " + número
     const char* golpes_label = "GOLPES: ";
     int label_width = getTextWidth(golpes_label);
     int number_width = getTextWidth("999"); // Estimación para centrado
@@ -696,7 +737,7 @@ void showLevelComplete(void) {
     drawNumber(hits, text2_x + label_width, box_y + 50);
     
     // Pausa
-    for (volatile int i = 0; i < 50000000; i++);
+    for (volatile int i = 0; i < 300000000; i++);
     
     resetBall();
     placeHoleRandomly();
@@ -735,7 +776,7 @@ void showHoleMessage(void) {
     drawNumber(hits, text2_x + label_width, box_y + 50);
     
     // Pausa
-    for (volatile int i = 0; i < 60000000; i++);
+    for (volatile int i = 0; i < 300000000; i++);
     
     fillScreen(COLOR_GREEN);
 }
@@ -755,7 +796,14 @@ void drawCircle(int centerX, int centerY, int radius, uint32_t color) {
     for (int y = -radius; y <= radius; y++) {
         for (int x = -radius; x <= radius; x++) {
             if (x*x + y*y <= radius*radius) {
-                putPixel(color, centerX + x, centerY + y);
+                int pixel_x = centerX + x;
+                int pixel_y = centerY + y;
+                
+                
+                if (pixel_x >= 0 && pixel_x < SCREEN_WIDTH && 
+                    pixel_y >= 0 && pixel_y < SCREEN_HEIGHT) {
+                    putPixel(color, pixel_x, pixel_y);
+                }
             }
         }
     }
@@ -803,7 +851,7 @@ void drawAimArrow(Paddle* paddle) {
     int paddle_center_x = paddle->x + paddle->width/2;
     int paddle_center_y = paddle->y + paddle->height/2;
     
-    // Usar las nuevas tablas para flechas más precisas
+    
     int angle_index = (paddle->aim_angle / 10) % 36;
     int dir_x = cos_table_fine[angle_index];
     int dir_y = sin_table_fine[angle_index];
@@ -813,33 +861,61 @@ void drawAimArrow(Paddle* paddle) {
     int tip_x = paddle_center_x + (dir_x * arrow_length) / 100;
     int tip_y = paddle_center_y + (dir_y * arrow_length) / 100;
     
+    
+    if (tip_x < 10 || tip_x >= SCREEN_WIDTH - 10 || 
+        tip_y < 55 || tip_y >= SCREEN_HEIGHT - 10) {
+        // Si la flecha se saldría de límites, acortar su longitud
+        arrow_length = 20; // Longitud más corta para bordes
+        tip_x = paddle_center_x + (dir_x * arrow_length) / 100;
+        tip_y = paddle_center_y + (dir_y * arrow_length) / 100;
+    }
+    
     // Línea principal más suave y visible
-    for (int t = 0; t < arrow_length; t += 1) {
+    for (int t = 0; t < arrow_length; t += 2) { // Menos puntos para mejor rendimiento
         int line_x = paddle_center_x + (dir_x * t) / 100;
         int line_y = paddle_center_y + (dir_y * t) / 100;
         
-        // Línea más suave con mejor antialiasing
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dy = -1; dy <= 1; dy++) {
-                putPixel(COLOR_RED, line_x + dx, line_y + dy);
+        
+        if (line_x >= 2 && line_x < SCREEN_WIDTH - 2 && 
+            line_y >= 47 && line_y < SCREEN_HEIGHT - 2) {
+            
+            // Línea más suave con mejor antialiasing
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    int pixel_x = line_x + dx;
+                    int pixel_y = line_y + dy;
+                    
+                    if (pixel_x >= 0 && pixel_x < SCREEN_WIDTH && 
+                        pixel_y >= 45 && pixel_y < SCREEN_HEIGHT) {
+                        putPixel(COLOR_RED, pixel_x, pixel_y);
+                    }
+                }
             }
         }
     }
     
-    // Punta de flecha bien proporcionada
-    int perp_x = -dir_y;
-    int perp_y = dir_x;
-    
-    int head1_x = tip_x - (dir_x * 10) / 100 + (perp_x * 7) / 100; // Proporcionada
-    int head1_y = tip_y - (dir_y * 10) / 100 + (perp_y * 7) / 100;
-    int head2_x = tip_x - (dir_x * 10) / 100 - (perp_x * 7) / 100;
-    int head2_y = tip_y - (dir_y * 10) / 100 - (perp_y * 7) / 100;
-    
-    drawLine(tip_x, tip_y, head1_x, head1_y, COLOR_RED);
-    drawLine(tip_x, tip_y, head2_x, head2_y, COLOR_RED);
-    
-    // Círculo en la punta optimizado
-    drawCircle(tip_x, tip_y, 4, COLOR_RED); // Tamaño perfecto
+    // Punta de flecha bien proporcionada - SOLO si está dentro de límites
+    if (tip_x >= 15 && tip_x < SCREEN_WIDTH - 15 && 
+        tip_y >= 60 && tip_y < SCREEN_HEIGHT - 15) {
+        
+        int perp_x = -dir_y;
+        int perp_y = dir_x;
+        
+        int head1_x = tip_x - (dir_x * 10) / 100 + (perp_x * 7) / 100;
+        int head1_y = tip_y - (dir_y * 10) / 100 + (perp_y * 7) / 100;
+        int head2_x = tip_x - (dir_x * 10) / 100 - (perp_x * 7) / 100;
+        int head2_y = tip_y - (dir_y * 10) / 100 - (perp_y * 7) / 100;
+        
+        // Solo dibujar líneas de la punta si están dentro de límites
+        if (head1_x >= 0 && head1_x < SCREEN_WIDTH && head1_y >= 45 && head1_y < SCREEN_HEIGHT &&
+            head2_x >= 0 && head2_x < SCREEN_WIDTH && head2_y >= 45 && head2_y < SCREEN_HEIGHT) {
+            drawLine(tip_x, tip_y, head1_x, head1_y, COLOR_RED);
+            drawLine(tip_x, tip_y, head2_x, head2_y, COLOR_RED);
+        }
+        
+        // Círculo en la punta optimizado - con verificación
+        drawCircle(tip_x, tip_y, 4, COLOR_RED);
+    }
 }
 
 void drawLine(int x1, int y1, int x2, int y2, uint32_t color) {
@@ -852,10 +928,17 @@ void drawLine(int x1, int y1, int x2, int y2, uint32_t color) {
     int x = x1, y = y1;
     
     while (1) {
-        // Línea más gruesa
+        
         for (int i = -1; i <= 1; i++) {
             for (int j = -1; j <= 1; j++) {
-                putPixel(color, x + i, y + j);
+                int pixel_x = x + i;
+                int pixel_y = y + j;
+                
+                // Verificar límites antes de dibujar
+                if (pixel_x >= 0 && pixel_x < SCREEN_WIDTH && 
+                    pixel_y >= 0 && pixel_y < SCREEN_HEIGHT) {
+                    putPixel(color, pixel_x, pixel_y);
+                }
             }
         }
         
