@@ -127,7 +127,7 @@ void handleInputImproved(void) {
         return;
     }
 }
-
+ 
 void processMovementImproved(void) {
 
     // Rotación del jugador 1 (independiente del movimiento)

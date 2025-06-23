@@ -14,6 +14,7 @@ GLOBAL _hlt
 GLOBAL _cli
 GLOBAL capture_provisoria
 GLOBAL capture_definitiva
+EXTERN captureRegistersFromStack
 
 
 section .bss
@@ -100,15 +101,16 @@ _irq00Handler:
     iretq
 
 _irq01Handler:
-    ;; CAPTURA DE REGISTROS EN ORDEN CORRECTO
+    ;; CAPTURA INMEDIATA DE TODOS LOS REGISTROS (antes de modificar nada)
     mov [capture_provisoria + 8*0], rax
     mov [capture_provisoria + 8*1], rbx
     mov [capture_provisoria + 8*2], rcx
     mov [capture_provisoria + 8*3], rdx
     mov [capture_provisoria + 8*4], rsi
     mov [capture_provisoria + 8*5], rdi
-    mov [capture_provisoria + 8*6], rsp
-    mov [capture_provisoria + 8*7], rbp
+    mov rax, [rsp + 24]                     ; RSP original del stack de interrupción
+    mov [capture_provisoria + 8*6], rax    ; Guardar RSP original (correcto)   ; RSP antes de pushear
+    mov [capture_provisoria + 8*7], rbp    ; RBP original
     mov [capture_provisoria + 8*8], r8
     mov [capture_provisoria + 8*9], r9
     mov [capture_provisoria + 8*10], r10
@@ -118,15 +120,17 @@ _irq01Handler:
     mov [capture_provisoria + 8*14], r14
     mov [capture_provisoria + 8*15], r15
 
-    mov rax, [rsp]         ; RIP
+    ;; Capturar valores del stack de interrupción (usando RAX como auxiliar)
+    mov rax, [rsp + 0]      ; RIP antes de la interrupción
     mov [capture_provisoria + 8*16], rax
-    mov ax, cs
-    movzx rax, ax
+    
+    mov rax, [rsp + 8]      ; CS antes de la interrupción
     mov [capture_provisoria + 8*17], rax
-    pushfq
-    pop rax
+    
+    mov rax, [rsp + 16]     ; RFLAGS antes de la interrupción
     mov [capture_provisoria + 8*18], rax
 
+    
     pushState
     mov rdi, 1
     call irqDispatcher
@@ -136,7 +140,6 @@ _irq01Handler:
 
     popState
     iretq
-
 
 _syscallHandler:
     ; Guardar todos los registros EXCEPTO rax
