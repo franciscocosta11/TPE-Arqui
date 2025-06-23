@@ -101,7 +101,20 @@ _irq00Handler:
     iretq
 
 _irq01Handler:
-    ;; CAPTURA INMEDIATA DE TODOS LOS REGISTROS (antes de modificar nada)
+    
+    push rax
+    push rdx
+    mov rdx, 0x60
+    in al, dx        
+    mov bl, al       
+    pop rdx
+    pop rax
+    
+    ;  capturar si es la tecla '9' 
+    cmp bl, 0x0A
+    jne .skip_capture
+    
+    
     mov [capture_provisoria + 8*0], rax
     mov [capture_provisoria + 8*1], rbx
     mov [capture_provisoria + 8*2], rcx
@@ -109,8 +122,8 @@ _irq01Handler:
     mov [capture_provisoria + 8*4], rsi
     mov [capture_provisoria + 8*5], rdi
     mov rax, [rsp + 24]                     ; RSP original del stack de interrupción
-    mov [capture_provisoria + 8*6], rax    ; Guardar RSP original (correcto)   ; RSP antes de pushear
-    mov [capture_provisoria + 8*7], rbp    ; RBP original
+    mov [capture_provisoria + 8*6], rax
+    mov [capture_provisoria + 8*7], rbp
     mov [capture_provisoria + 8*8], r8
     mov [capture_provisoria + 8*9], r9
     mov [capture_provisoria + 8*10], r10
@@ -120,8 +133,7 @@ _irq01Handler:
     mov [capture_provisoria + 8*14], r14
     mov [capture_provisoria + 8*15], r15
 
-    ;; Capturar valores del stack de interrupción (usando RAX como auxiliar)
-    mov rax, [rsp + 0]      ; RIP antes de la interrupción
+    lea rax, [rel _irq01Handler]            ; RIP actual del handler
     mov [capture_provisoria + 8*16], rax
     
     mov rax, [rsp + 8]      ; CS antes de la interrupción
@@ -130,7 +142,7 @@ _irq01Handler:
     mov rax, [rsp + 16]     ; RFLAGS antes de la interrupción
     mov [capture_provisoria + 8*18], rax
 
-    
+.skip_capture:
     pushState
     mov rdi, 1
     call irqDispatcher
