@@ -133,7 +133,7 @@ _irq01Handler:
     mov [capture_provisoria + 8*14], r14
     mov [capture_provisoria + 8*15], r15
 
-    lea rax, [rel _irq01Handler]            ; RIP actual del handler
+    mov rax, [rsp + 0]      ; RAX antes de la interrupción
     mov [capture_provisoria + 8*16], rax
     
     mov rax, [rsp + 8]      ; CS antes de la interrupción
