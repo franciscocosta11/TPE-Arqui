@@ -52,7 +52,7 @@ uint64_t syscallDispatcher(uint64_t rax, uint64_t rsi, uint64_t rdx, uint64_t rc
         case 5: // SYS_FONT_SIZE
             {
                 uint8_t size = (uint8_t)rsi;
-                vdSetFontSize(size);
+                return (uint64_t)vdSetFontSize(size);
             }
             break;
             

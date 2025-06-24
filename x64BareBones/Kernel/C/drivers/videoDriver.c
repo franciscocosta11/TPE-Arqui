@@ -44,16 +44,14 @@ struct vbe_mode_info_structure {
     uint8_t reserved1[206];
 } __attribute__ ((packed));
 
-typedef struct vbe_mode_info_structure * VBEInfoPtr; // creo puntero a la estructura con los datos de la pantalla
+typedef struct vbe_mode_info_structure * VBEInfoPtr;
 
 VBEInfoPtr VBE_mode_info = (VBEInfoPtr) 0x0000000000005C00;
 
-// Variables globales para manejar el cursor y colores
 static uint16_t cursorX = 0;
 static uint16_t cursorY = 0;
-static uint32_t defaultFgColor = 0xFFFFFF; // Blanco por defecto
-static uint32_t defaultBgColor = 0x000000; // Negro por defecto
-
+static uint32_t defaultFgColor = 0xFFFFFF;
+static uint32_t defaultBgColor = 0x000000;
 
 typedef struct {
     const char* name;
@@ -74,7 +72,7 @@ static const color_entry_t available_colors[] = {
     {"gray", 0x808080},
     {"lightgray", 0xC0C0C0},
     {"darkgray", 0x404040},
-    {NULL, 0} // Terminador
+    {NULL, 0}
 };
 
 static int vd_strcmp(const char *s1, const char *s2) {
@@ -85,7 +83,18 @@ static int vd_strcmp(const char *s1, const char *s2) {
     return *(unsigned char*)s1 - *(unsigned char*)s2;
 }
 
+int vdIsValidMode(void) {
+    if (VBE_mode_info == NULL) return 0;
+    if (VBE_mode_info->width == 0 || VBE_mode_info->height == 0) return 0;
+    if (VBE_mode_info->bpp != 24 && VBE_mode_info->bpp != 32) return 0;
+    if (VBE_mode_info->framebuffer == 0) return 0;
+    return 1;
+}
+
 void putPixel(uint32_t hexColor, uint64_t x, uint64_t y) {
+    if (!vdIsValidMode()) return;
+    if (x >= VBE_mode_info->width || y >= VBE_mode_info->height) return;
+    
     uint8_t * framebuffer = (uint8_t *)(uint64_t)VBE_mode_info->framebuffer;
     uint64_t offset = (x * ((VBE_mode_info->bpp)/8)) + (y * VBE_mode_info->pitch);
     framebuffer[offset]     =  (hexColor) & 0xFF;
@@ -103,7 +112,7 @@ uint32_t vdGetColorByName(const char* colorName) {
             return available_colors[i].color;
         }
     }
-    return 0xFFFFFF; // Blanco por defecto si no se encuentra
+    return 0xFFFFFF;
 }
 
 void vdPrintAvailableColors() {
@@ -118,30 +127,32 @@ void vdPrintAvailableColors() {
 }
 
 void vdPrintChar(char character) {
-    vdPrintCharStyled(character, defaultFgColor, defaultBgColor); // imprimo caracter con los colores default
+    vdPrintCharStyled(character, defaultFgColor, defaultBgColor);
 }
 
 void vdPrint(const char *string) {
-    vdPrintStyled((char*)string, defaultFgColor, defaultBgColor); // imprimo string con los colores default
+    vdPrintStyled((char*)string, defaultFgColor, defaultBgColor);
 }
 
 uint64_t vdPrintCharStyled(char character, uint32_t color, uint32_t bgColor) {
+    if (!vdIsValidMode()) return 0;
+    
     uint8_t fontWidth = WIDTH_S;
     uint8_t fontHeight = HEIGHT_S;
     
     unsigned char* charData = getCharHexData(character);
     
     if (character == '\n') {
-        vdNewline(); // enter
+        vdNewline();
         return 0;
     }
     
     if (character == '\b') {
-        vdDelete(); // borro caracter
+        vdDelete();
         return 0;
     }
     
-    if (cursorX + (fontWidth * currentFontSize) >= VBE_mode_info->width) { // me pase de el ancho maximo
+    if (cursorX + (fontWidth * currentFontSize) >= VBE_mode_info->width) {
         vdNewline(); 
     }
     
@@ -181,17 +192,16 @@ uint64_t vdNPrintStyled(const char *string, uint32_t color, uint32_t bgColor, ui
 }
 
 void vdNewline() {
+    if (!vdIsValidMode()) return;
+    
     cursorX = 0;
     cursorY += HEIGHT_S * currentFontSize;
     
     if (cursorY + (HEIGHT_S * currentFontSize) >= VBE_mode_info->height) {
-        // Hacer scroll
         uint16_t lineHeight = HEIGHT_S * currentFontSize;
         
-        // Copiar todas las lineas una posición hacia arriba
         for (uint16_t y = lineHeight; y < VBE_mode_info->height; y++) {
             for (uint16_t x = 0; x < VBE_mode_info->width; x++) {
-                // Leer pixel de la línea actual
                 uint8_t * framebuffer = (uint8_t *)(uint64_t)VBE_mode_info->framebuffer;
                 uint64_t offset = (x * 3) + (y * VBE_mode_info->pitch);
                 
@@ -199,27 +209,27 @@ void vdNewline() {
                                 (framebuffer[offset+1] << 8) | 
                                 framebuffer[offset];
                 
-                // Escribir pixel en la línea anterior
                 putPixel(pixel, x, y - lineHeight);
             }
         }
         
-        // Limpiar la última línea
         drawRectangle(defaultBgColor, 0, VBE_mode_info->height - lineHeight, 
                      VBE_mode_info->width, VBE_mode_info->height);
         
-        // Ajustar cursor a la última línea
         cursorY = VBE_mode_info->height - lineHeight;
     }
 }
 
 void vdClear() {
+    if (!vdIsValidMode()) return;
     drawRectangle(defaultBgColor, 0, 0, VBE_mode_info->width, VBE_mode_info->height);
     cursorX = 0;
     cursorY = 0;
 }
 
 void vdDelete() {
+    if (!vdIsValidMode()) return;
+    
     uint8_t fontWidth = WIDTH_S;
     uint8_t fontHeight = HEIGHT_S;
     
@@ -235,25 +245,30 @@ void vdDelete() {
 }
 
 void drawRectangle(uint32_t color, uint16_t up_l_x, uint16_t up_l_y, uint16_t lo_r_x, uint16_t lo_r_y) {
-    for (uint16_t y = up_l_y; y < lo_r_y; y++) {
-        for (uint16_t x = up_l_x; x < lo_r_x; x++) {
+    if (!vdIsValidMode()) return;
+    
+    for (uint16_t y = up_l_y; y < lo_r_y && y < VBE_mode_info->height; y++) {
+        for (uint16_t x = up_l_x; x < lo_r_x && x < VBE_mode_info->width; x++) {
             putPixel(color, x, y);
         }
     }
 }
 
-void vdSetFontSize(uint8_t size) {
-    if (size >= 1 && size <= MAX_FONT_SIZE) {
-        currentFontSize = size;
-    }
+int vdSetFontSize(uint8_t size) {
+    if (!vdIsValidMode()) return -1;
+    if (size < 1 || size > MAX_FONT_SIZE) return -1;
+    
+    currentFontSize = size;
+    return 0;
 }
 
 void vdSetColor(uint32_t fgColor) {
     defaultFgColor = fgColor;
 }
 
-// Función para llenar toda la pantalla con un color
 void vdFillScreen(uint32_t color) {
+    if (!vdIsValidMode()) return;
+    
     for (uint16_t y = 0; y < VBE_mode_info->height; y++) {
         for (uint16_t x = 0; x < VBE_mode_info->width; x++) {
             putPixel(color, x, y);
@@ -262,9 +277,11 @@ void vdFillScreen(uint32_t color) {
 }
 
 uint16_t vdGetScreenWidth(void) {
+    if (!vdIsValidMode()) return 0;
     return VBE_mode_info->width;
 }
 
 uint16_t vdGetScreenHeight(void) {
+    if (!vdIsValidMode()) return 0;
     return VBE_mode_info->height;
 }

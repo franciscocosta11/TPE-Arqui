@@ -92,9 +92,10 @@ void drawRectangle(uint32_t color, uint16_t up_l_x, uint16_t up_l_y, uint16_t lo
 /**
  * @brief Establece el tamaño de la fuente
  * @param size Tamaño de fuente (1 a MAX_FONT_SIZE)
+ * @return 0 en caso de éxito, -1 en caso de error
  * @note Tamaños mayores incrementan el tamaño de los caracteres
  */
-void vdSetFontSize(uint8_t size);
+int vdSetFontSize(uint8_t size);
 
 /**
  * @brief Establece el color de primer plano por defecto
@@ -141,5 +142,12 @@ uint16_t vdGetScreenWidth(void);
  * @return Altura en píxeles  
  */
 uint16_t vdGetScreenHeight(void);
+
+/**
+ * @brief Verifica si el modo de video está correctamente inicializado
+ * @return 1 si el modo es válido, 0 en caso contrario
+ * @note Función auxiliar para validar hardware de video
+ */
+int vdIsValidMode(void);
 
 #endif

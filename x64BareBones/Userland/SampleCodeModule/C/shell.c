@@ -1,19 +1,16 @@
 #include "./../include/libc.h"
 #include "./../include/shell.h"
-#define USER_LENGTH 19 // longitud de cadena "mark_zuckerberg", aka el usuario por defecto
+#define USER_LENGTH 19
 #define CMD_MAX 64
 #define USERNAME_MAX 32
 static uint8_t currentFontSize = 1;
 
-// Variable global para el nombre de usuario
 static char username[USERNAME_MAX] = "mark_zuckerberg";
 
-// Declaración del juego
 void startGolfGame(void);
 
 extern void triggerInvalidOpcode(void);
 
-// Funciones inline para provocar excepciones
 static void triggerDivisionByZero(void) {
     volatile int a = 1;
     volatile int b = 0;
@@ -21,18 +18,15 @@ static void triggerDivisionByZero(void) {
     (void)result;
 }
 
-// Función para imprimir el prompt con el usuario actual
 void printPrompt() {
     print("@");
     print(username);
     print("$> ");
 }
 
-// Función para parsear comandos con argumentos
 int parseCommand(char* input, char* command, char* argument) {
     int i = 0, j = 0;
     
-    // Extraer comando (hasta el primer espacio)
     while (input[i] != ' ' && input[i] != '\0' && j < CMD_MAX - 1) {
         command[j] = input[i];
         i++;
@@ -40,12 +34,10 @@ int parseCommand(char* input, char* command, char* argument) {
     }
     command[j] = '\0';
     
-    // Saltar espacios
     while (input[i] == ' ') {
         i++;
     }
     
-    // Extraer argumento
     j = 0;
     while (input[i] != '\0' && j < USERNAME_MAX - 1) {
         argument[j] = input[i];
@@ -107,7 +99,6 @@ void shell() {
     int inputLen = 0;
 
     print("Bienvenido al mejor tpe de Arqui!\n");
-    //playWinSound();
     
     printPrompt();
 
@@ -159,14 +150,21 @@ void shell() {
                 displayRegisters();
             }
             else if (strcmp(command, "font") == 0) {
-                currentFontSize = (currentFontSize % 3) + 1;
-                clearScreen();
-                syscall(5, currentFontSize, 0, 0);  
-                print("Tamanio de fuente cambiado a ");
-                if (currentFontSize == 1) print("pequenio");
-                else if (currentFontSize == 2) print("mediano");
-                else print("grande");
-                print("\n");
+                uint8_t newSize = (currentFontSize % 3) + 1;
+                
+                int result = syscall(5, newSize, 0, 0);
+                
+                if (result == 0) {
+                    currentFontSize = newSize;
+                    clearScreen();
+                    print("Tamanio de fuente cambiado a ");
+                    if (currentFontSize == 1) print("pequenio");
+                    else if (currentFontSize == 2) print("mediano");
+                    else print("grande");
+                    print("\n");
+                } else {
+                    print("Error: No se pudo cambiar el tamaño de fuente en este hardware\n");
+                }
             }
             else if (strcmp(command, "color") == 0) {
                 if (hasArgument) {
@@ -205,12 +203,10 @@ void shell() {
                     print("\n");
                 }
             }
-            // COMANDO GOLF CON SONIDO DE INICIO
             else if (strcmp(command, "golf") == 0) {
                 clearScreen();
-                playBeep(); // SONIDO AL INICIAR GOLF
+                playBeep();
                 startGolfGame();
-                // Cuando regrese del juego
                 clearScreen();
                 print("Gracias por jugar Pongis-Golf!\n");
             }
