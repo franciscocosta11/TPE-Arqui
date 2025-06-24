@@ -99,7 +99,7 @@ unsigned char *getCharHexData(uint8_t c) {
 
 uint32_t vdGetColorByName(const char* colorName) {
     for (int i = 0; available_colors[i].name != 0; i++) {
-        if (vd_strcmp(colorName, available_colors[i].name) == 0) {  // CAMBIADO: usar vd_strcmp
+        if (vd_strcmp(colorName, available_colors[i].name) == 0) {  
             return available_colors[i].color;
         }
     }

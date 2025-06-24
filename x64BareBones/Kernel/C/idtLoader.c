@@ -5,8 +5,7 @@
 
 extern void _exception0Handler(void);
 extern void _exception06Handler(void);
-extern void _syscallHandler(void);  // <== ESTA ES LA QUE FALTABA
-
+extern void _syscallHandler(void);  
 
 #pragma pack(push)
 #pragma pack (1)

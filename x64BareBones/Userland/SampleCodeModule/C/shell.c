@@ -128,7 +128,7 @@ void shell() {
             putchar(c);
             input[inputLen] = '\0';
 
-            // Parsear comando y argumento
+        
             int hasArgument = parseCommand(input, command, argument);
 
             if (strcmp(command, "ls") == 0) {
@@ -161,7 +161,7 @@ void shell() {
             else if (strcmp(command, "font") == 0) {
                 currentFontSize = (currentFontSize % 3) + 1;
                 clearScreen();
-                syscall(5, currentFontSize, 0, 0);  // Cambiar setFontSize() por syscall directo
+                syscall(5, currentFontSize, 0, 0);  
                 print("Tamanio de fuente cambiado a ");
                 if (currentFontSize == 1) print("pequenio");
                 else if (currentFontSize == 2) print("mediano");

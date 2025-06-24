@@ -123,7 +123,7 @@ uint64_t syscallDispatcher(uint64_t rax, uint64_t rsi, uint64_t rdx, uint64_t rc
             break;
 
         case 16: // SYS_GET_SCREEN_WIDTH
-            return (uint64_t)vdGetScreenWidth();  // ← Ya correcto
+            return (uint64_t)vdGetScreenWidth();  
 
         case 17: // SYS_GET_SCREEN_HEIGHT
             return (uint64_t)vdGetScreenHeight();
